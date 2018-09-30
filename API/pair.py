@@ -1,5 +1,7 @@
 import API.api_request as request
 from API.candlestick import Candlestick
+from API.order_book import OrderBook
+from API.offer import Offer
 
 class Pair(object):
 
@@ -10,6 +12,7 @@ class Pair(object):
         self.last_price = 0
         self.candlesticks = []
         self.offers = []
+        self.orderbook = None
 
     def get_quote_token(self):
         return self.quote
@@ -43,7 +46,24 @@ class Pair(object):
 
     def load_offers(self, contract):
         params = {"blockchain": contract.get_chain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
-        self.offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
+        raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
+        self.offers = []
+        for offer in raw_offers:
+            way = OrderBook.WAY_BUY
+            quote_amount = offer["want_amount"]
+            base_amount = offer["available_amount"]
+            if offer["offer_asset"] == self.get_quote_token().get_name():
+                way = OrderBook.WAY_SELL
+
+                quote_amount = offer["available_amount"]
+                base_amount = offer["want_amount"]
+            quote_amount = quote_amount / pow(10, self.get_quote_token().get_decimals())
+            base_amount = base_amount / pow(10, self.get_base_token().get_decimals())
+
+            price = base_amount / quote_amount
+
+            self.offers.append(Offer(way, quote_amount, base_amount, price))
+        self.orderbook = OrderBook(self.offers)
         return self.offers
 
     def __str__(self):

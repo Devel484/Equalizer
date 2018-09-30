@@ -118,7 +118,7 @@ if __name__ == "__main__":
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
     print(switcheo.get_pair("GAS_NEO").load_offers(contract))
-    print(switcheo.get_pair("GAS_NEO"))
+    #switcheo.get_pair("GAS_NEO").taker(10, switcheo.get_token("NEO"))
 
 
 
