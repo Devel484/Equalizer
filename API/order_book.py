@@ -1,5 +1,6 @@
 from API.trade import Trade
 
+import time
 
 class OrderBook(object):
 
@@ -9,11 +10,12 @@ class OrderBook(object):
         self.book[Trade.WAY_BUY] = []
         self.book[Trade.WAY_SELL] = []
         self.pair = pair
-        self.timestamp = 0
+        self.timestamp = time.time()
 
         if offers:
             for offer in offers:
                 self.add(offer)
+            self.sum_up()
 
     def get_timestamp(self):
         return self.timestamp
@@ -138,8 +140,7 @@ class OrderBook(object):
         if self.pair.get_quote_token() == token:
             return self.reverse_sell(amount)
 
-    def reverse_buy(self, amount):
-        trades = []
+    def reverse_buy(self, amount): # GAS
         trade_amount = 0
         for i in range(len(self.book[Trade.WAY_SELL])):
             offer = self.book[Trade.WAY_SELL][i]
@@ -147,18 +148,38 @@ class OrderBook(object):
             amount_base = offer.get_base_amount() # NEO
             price = offer.get_price()
 
-            if amount_base >= amount:
-                buy_amount = amount / price
-                trade = Trade(self.pair, Trade.WAY_BUY, price, amount, buy_amount, None)
-                trades.append(trade)
-                return trades
+            if amount_quote >= amount:
+                trade_amount = trade_amount + amount*price / (1 - self.pair.get_exchange().get_fees())
+                return trade_amount
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
             '''
-            trade = Trade(self.pair, Trade.WAY_BUY, price, amount_base, amount_quote, None)
+            trade_amount = trade_amount + amount_base
+            amount = amount - amount_quote
+
+        '''
+        Not enough volume or amount to high
+        '''
+        raise KeyError("Not enough offers in orderbook. Low volume or amount to high.")
+
+    def reverse_sell(self, amount): # NEO
+        trade_amount = 0
+        for i in range(len(self.book[Trade.WAY_BUY])):
+            offer = self.book[Trade.WAY_BUY][i]
+            amount_quote = offer.get_quote_amount() # GAS
+            amount_base = offer.get_base_amount() # NEO
+            price = offer.get_price()
+
+            if amount_base >= amount:
+                trade_amount = trade_amount + amount/price / (1 - self.pair.get_exchange().get_fees())
+                return trade_amount
+
+            '''
+            Is the offered amount less than needed, you can only buy the offered amount and continue
+            '''
+            trade_amount = trade_amount + amount_quote
             amount = amount - amount_base
-            trades = trades + [trade]
 
         '''
         Not enough volume or amount to high

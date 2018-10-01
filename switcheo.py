@@ -4,6 +4,7 @@ from API.contract import Contract
 from API.token import Token
 from API.pair import Pair
 from API.candlestick import Candlestick
+from equalizer import Equalizer
 
 import time
 
@@ -122,12 +123,14 @@ if __name__ == "__main__":
     switcheo = Switcheo()
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    pair = switcheo.get_pair("GAS_NEO")
-    pair.load_offers(contract)
-    for trade in pair.get_orderbook().taker(25, switcheo.get_token("GAS")):
-        print(trade)
-    for trade in switcheo.get_pair("GAS_NEO").get_orderbook().taker(10, switcheo.get_token("NEO")):
-        print(trade)
+    gas_neo = switcheo.get_pair("GAS_NEO")
+    swth_gas = switcheo.get_pair("SWTH_GAS")
+    swth_neo = switcheo.get_pair("SWTH_NEO")
+    equalizer = Equalizer(gas_neo, swth_gas, swth_neo)
+    gas_neo.load_offers(contract)
+    swth_gas.load_offers(contract)
+    swth_neo.load_offers(contract)
+
 
 
 

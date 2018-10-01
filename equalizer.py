@@ -48,14 +48,14 @@ class Equalizer():
         if not self.end_pair.is_updated():
             return
 
-        if self.start_market.get_timestamp() > self.timestamp:
-            self.timestamp = self.start_market.get_timestamp()
+        if self.start_pair.get_orderbook().get_timestamp() > self.timestamp:
+            self.timestamp = self.start_pair.get_orderbook().get_timestamp()
 
-        if self.middle_market.get_timestamp() > self.timestamp:
-            self.timestamp = self.middle_market.get_timestamp()
+        if self.middle_pair.get_orderbook().get_timestamp() > self.timestamp:
+            self.timestamp = self.middle_pair.get_orderbook().get_timestamp()
 
-        if self.end_market.get_timestamp() > self.timestamp:
-            self.timestamp = self.end_market.get_timestamp()
+        if self.end_pair.get_orderbook().get_timestamp() > self.timestamp:
+            self.timestamp = self.end_pair.get_orderbook().get_timestamp()
 
         self.get_best_amount()
 
@@ -98,9 +98,7 @@ class Equalizer():
         self.print()
         return
 
-    def calc(self, amount=None):
-        if not amount:
-            amount = self.amount
+    def calc(self, amount):
         self.start_market.trade(amount)
         self.middle_market.trade(self.start_market.getTotal())
         self.end_market.trade(self.middle_market.getTotal())
@@ -111,31 +109,32 @@ class Equalizer():
         best_win = []
         i = 0
         while True:
-            max_possible_start = self.start_market.get_sum_after_fees(i, self.inner_first_currency)
-            max_possible_middle = self.middle_market.get_sum(i, self.inner_first_currency)
+            max_possible_start = self.start_pair.get_orderbook().get_sum_after_fees(i, self.inner_first_currency)
+            max_possible_middle = self.middle_pair.get_orderbook().get_sum(i, self.inner_first_currency)
 
             if max_possible_start > max_possible_middle:
                 max_possible_start = max_possible_middle
 
-            #print(max_possible_start)
-            #print(max_possible_middle)
+            print(max_possible_start)
+            print(max_possible_middle)
 
-            max_possible_middle = self.middle_market.get_sum_after_fees(i, self.inner_second_currency)
-            max_possible_end = self.end_market.get_sum(i, self.inner_second_currency)
+            max_possible_middle = self.middle_pair.get_orderbook().get_sum_after_fees(i, self.inner_second_currency)
+            max_possible_end = self.end_pair.get_orderbook().get_sum(i, self.inner_second_currency)
 
             if max_possible_middle > max_possible_end:
                 max_possible_middle = max_possible_end
-                max_possible_start = self.middle_market.reverse(max_possible_middle)
+                max_possible_start = self.middle_pair.get_orderbook().reverse_taker(max_possible_middle, self.inner_first_currency)
 
-            start_with = self.start_market.reverse(max_possible_start)
+            start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outter_currency)
             self.calc(start_with)
 
-            end_with = self.end_market.getTotal()
+            end_with = self.end_pair.get_orderbook.getTotal()
             win = end_with-start_with
             if win > 0.00000100:
                 best_win.append((win, start_with))
             else:
                 break
+            i = i + 1
 
         if len(best_win) > 0:
             best_win = sorted(best_win, key=self.getKey, reverse=True)
