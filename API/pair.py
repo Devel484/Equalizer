@@ -1,7 +1,9 @@
 import API.api_request as request
 from API.candlestick import Candlestick
 from API.order_book import OrderBook
+from API.trade import Trade
 from API.offer import Offer
+
 
 class Pair(object):
 
@@ -13,6 +15,7 @@ class Pair(object):
         self.candlesticks = []
         self.offers = []
         self.orderbook = None
+        self.on_update_method = []
 
     def get_quote_token(self):
         return self.quote
@@ -49,11 +52,11 @@ class Pair(object):
         raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
         self.offers = []
         for offer in raw_offers:
-            way = OrderBook.WAY_BUY
+            way = Trade.WAY_BUY
             quote_amount = offer["want_amount"]
             base_amount = offer["available_amount"]
             if offer["offer_asset"] == self.get_quote_token().get_name():
-                way = OrderBook.WAY_SELL
+                way = Trade.WAY_SELL
 
                 quote_amount = offer["available_amount"]
                 base_amount = offer["want_amount"]
@@ -63,8 +66,31 @@ class Pair(object):
             price = base_amount / quote_amount
 
             self.offers.append(Offer(way, quote_amount, base_amount, price))
-        self.orderbook = OrderBook(self.offers)
+        self.orderbook = OrderBook(self, self.offers)
+        self.fire_on_update()
         return self.offers
+
+    def get_orderbook(self):
+        return self.orderbook
+
+    def get_exchange(self):
+        return self.exchange
+
+    def is_updated(self):
+        return self.orderbook is not None and self.orderbook.is_updated()
 
     def __str__(self):
         return "Pair:%s Last Price:%.8f" % (self.get_symbol(), self.get_last_price())
+
+    def get_equal_token(self, tp):
+        if self.base == tp.get_base_token() or self.base == tp.get_quote_token():
+            return self.base
+        if self.quote == tp.get_quote_token() or self.quote == tp.get_base_token():
+            return self.quote
+
+    def add_on_update(self, callback):
+        self.on_update_method.append(callback)
+
+    def fire_on_update(self):
+        for callback in self.on_update_method:
+            callback()

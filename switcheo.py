@@ -7,6 +7,7 @@ from API.candlestick import Candlestick
 
 import time
 
+
 class Switcheo(object):
 
     _API_URL = [
@@ -17,17 +18,21 @@ class Switcheo(object):
     MAIN_NET = 0
     TEST_NET = 1
 
-    def __init__(self, api_net=MAIN_NET):
+    def __init__(self, api_net=MAIN_NET, fees=0.0015):
         self.url = Switcheo._API_URL[api_net]
         self.tokens = []
         self.pairs = []
         self.contracts = []
+        self.fees = fees
 
     def initialise(self):
         self.load_contracts()
         self.load_tokens()
         self.load_pairs()
         self.load_last_prices()
+
+    def get_fees(self):
+        return self.fees
 
     def get_url(self):
         return self.url
@@ -117,8 +122,12 @@ if __name__ == "__main__":
     switcheo = Switcheo()
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    print(switcheo.get_pair("GAS_NEO").load_offers(contract))
-    #switcheo.get_pair("GAS_NEO").taker(10, switcheo.get_token("NEO"))
+    pair = switcheo.get_pair("GAS_NEO")
+    pair.load_offers(contract)
+    for trade in pair.get_orderbook().taker(25, switcheo.get_token("GAS")):
+        print(trade)
+    for trade in switcheo.get_pair("GAS_NEO").get_orderbook().taker(10, switcheo.get_token("NEO")):
+        print(trade)
 
 
 
