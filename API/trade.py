@@ -87,7 +87,7 @@ class Trade(object):
         return self.type == Trade.TRADE_TYPE_LIMIT
 
     def __str__(self):
-        return("%4s %s %16.8f %s for %16.8f %s paying %16.8f %s fees"% (self.get_trade_block(), self.pair.get_symbol(), self.amount_quote,
+        return("%4s %8s %16.8f %4s for %16.8f %4s paying %16.8f %4s fees"% (self.get_trade_block(), self.pair.get_symbol(), self.amount_quote,
                                                                        self.pair.get_quote_token().get_name(), self.amount_base, self.pair.get_base_token().get_name(),
                                                                        self.fees, self.fee_currency.get_name()))
 
