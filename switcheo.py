@@ -118,18 +118,36 @@ class Switcheo(object):
 
         return prices
 
+    def get_all_equalizer(self):
+        pairs = self.pairs
+        equalizers = []
+        for start_pair in pairs:
+            for middle_pair in pairs:
+                for end_pairs in pairs:
+                    try:
+                        equalizers.append(Equalizer(start_pair, middle_pair, end_pairs))
+                    except ValueError:
+                        continue
+        return equalizers
+
 
 if __name__ == "__main__":
     switcheo = Switcheo()
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    gas_neo = switcheo.get_pair("GAS_NEO")
+    """gas_neo = switcheo.get_pair("GAS_NEO")
     swth_gas = switcheo.get_pair("SWTH_GAS")
     swth_neo = switcheo.get_pair("SWTH_NEO")
     equalizer = Equalizer(gas_neo, swth_gas, swth_neo)
     gas_neo.load_offers(contract)
     swth_gas.load_offers(contract)
-    swth_neo.load_offers(contract)
+    swth_neo.load_offers(contract)"""
+    equalizers = switcheo.get_all_equalizer()
+    print(len(equalizers))
+    print(len(switcheo.get_pairs()))
+    while True:
+        for pair in switcheo.get_pairs():
+            pair.load_offers(contract)
 
 
 
