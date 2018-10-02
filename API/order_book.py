@@ -82,6 +82,7 @@ class OrderBook(object):
 
     def buy(self, amount):
         trades = []
+        buy_amount = 0
         for i in range(len(self.book[Trade.WAY_SELL])):
             offer = self.book[Trade.WAY_SELL][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -89,15 +90,17 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_base >= amount:
-                buy_amount = amount / price
-                trade = Trade(self.pair, Trade.WAY_BUY, price, amount, buy_amount, None)
+                tmp = amount / price
+                trade = Trade(self.pair, Trade.WAY_BUY, price, amount, tmp, None)
+                buy_amount = buy_amount + trade.get_amount_quote()
                 trades.append(trade)
-                return trades
+                return trades, buy_amount
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
             '''
             trade = Trade(self.pair, Trade.WAY_BUY, price, amount_base, amount_quote, None)
+            buy_amount = buy_amount + trade.get_amount_quote()
             amount = amount - amount_base
             trades = trades + [trade]
 
@@ -108,6 +111,7 @@ class OrderBook(object):
 
     def sell(self, amount): # GAS
         trades = []
+        sell_amount = 0
         for i in range(len(self.book[Trade.WAY_BUY])):
             offer = self.book[Trade.WAY_BUY][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -115,16 +119,18 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_quote >= amount:
-                sell_amount = amount * price
-                trade = Trade(self.pair, Trade.WAY_SELL, price, sell_amount, amount, None)
+                tmp = amount * price
+                trade = Trade(self.pair, Trade.WAY_SELL, price, tmp, amount, None)
+                sell_amount = sell_amount + trade.get_amount_base()
                 trades.append(trade)
-                return trades
+                return trades, sell_amount
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
             '''
             trade = Trade(self.pair, Trade.WAY_SELL, price, amount_base, amount_quote, None)
             amount = amount - amount_quote
+            sell_amount = sell_amount + trade.get_amount_base()
             trades = trades + [trade]
 
         '''

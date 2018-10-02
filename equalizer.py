@@ -99,9 +99,10 @@ class Equalizer():
         return
 
     def calc(self, amount):
-        self.start_market.trade(amount)
-        self.middle_market.trade(self.start_market.getTotal())
-        self.end_market.trade(self.middle_market.getTotal())
+        _, amount = self.start_pair.get_orderbook().taker(amount, self.outter_currency)
+        _, amount = self.middle_pair.get_orderbook().taker(amount, self.inner_first_currency)
+        _, amount = self.end_pair.get_orderbook().taker(amount, self.inner_second_currency)
+        return amount
 
 
     def get_best_amount(self):
@@ -115,9 +116,6 @@ class Equalizer():
             if max_possible_start > max_possible_middle:
                 max_possible_start = max_possible_middle
 
-            print(max_possible_start)
-            print(max_possible_middle)
-
             max_possible_middle = self.middle_pair.get_orderbook().get_sum_after_fees(i, self.inner_second_currency)
             max_possible_end = self.end_pair.get_orderbook().get_sum(i, self.inner_second_currency)
 
@@ -126,10 +124,14 @@ class Equalizer():
                 max_possible_start = self.middle_pair.get_orderbook().reverse_taker(max_possible_middle, self.inner_first_currency)
 
             start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outter_currency)
-            self.calc(start_with)
+            end_with = self.calc(start_with)
 
-            end_with = self.end_pair.get_orderbook.getTotal()
+            print(max_possible_start)
+            print(max_possible_middle)
+            print(max_possible_end)
+
             win = end_with-start_with
+            print(start_with, end_with, win)
             if win > 0.00000100:
                 best_win.append((win, start_with))
             else:
@@ -137,7 +139,7 @@ class Equalizer():
             i = i + 1
 
         if len(best_win) > 0:
-            best_win = sorted(best_win, key=self.getKey, reverse=True)
+            best_win = sorted(best_win, key=lambda entry: entry[0], reverse=True)
             self.amount = best_win[0][1]
             self.calc(best_win[0][1])
             self.printWin()
