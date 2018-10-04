@@ -35,6 +35,12 @@ class Trade(object):
             self.fees = self.amount_base * pair.get_exchange().get_fees()
             self.amount_base = self.amount_base - self.fees
 
+    def get_total(self):
+        if self.way == Trade.WAY_BUY:
+            return self.amount_quote + self.fees
+        else:
+            return self.amount_base + self.fees
+
     def get_pair(self):
         return self.pair
 

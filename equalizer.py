@@ -1,5 +1,5 @@
 from API.pair import Pair
-
+import API.log
 import time
 
 class Equalizer():
@@ -96,10 +96,7 @@ class Equalizer():
 
         for trade in calc[3]:
             print(trade)
-        #self.start_market.print()
-        #self.middle_market.print()
-        #self.end_market.print()
-        #self.print()
+        self.execute(calc[3])
         return
 
     def calc(self, amount):
@@ -121,35 +118,58 @@ class Equalizer():
         i = 0
         while True:
             try:
-                max_possible_start = self.start_pair.get_orderbook().get_sum_after_fees(i, self.inner_first_currency)
-                max_possible_middle = self.middle_pair.get_orderbook().get_sum(i, self.inner_first_currency)
+                start_market = self.start_pair.get_orderbook()
+                middle_market = self.middle_pair.get_orderbook()
+                end_market = self.end_pair.get_orderbook()
+                max_possible_start = start_market.get_sum_after_fees(i, start_market.get_maker_trade_way(self.outter_currency), self.inner_first_currency)
+                max_possible_middle = middle_market.get_sum(i, middle_market.get_maker_trade_way(self.inner_first_currency), self.inner_first_currency)
 
                 if max_possible_start > max_possible_middle:
                     max_possible_start = max_possible_middle
 
-                max_possible_middle = self.middle_pair.get_orderbook().get_sum_after_fees(i, self.inner_second_currency)
-                max_possible_end = self.end_pair.get_orderbook().get_sum(i, self.inner_second_currency)
+                max_possible_middle = middle_market.get_sum_after_fees(i, middle_market.get_maker_trade_way(self.inner_first_currency), self.inner_second_currency)
+                max_possible_end = end_market.get_sum(i, end_market.get_maker_trade_way(self.inner_second_currency), self.inner_second_currency)
 
                 if max_possible_middle > max_possible_end:
                     max_possible_middle = max_possible_end
-                    max_possible_start = self.middle_pair.get_orderbook().reverse_taker(max_possible_middle, self.inner_first_currency)
+                    tmp = self.middle_pair.get_orderbook().reverse_taker(max_possible_middle, self.inner_first_currency)
+                    if tmp < max_possible_start:
+                        max_possible_start = tmp
 
                 start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outter_currency)
                 end_with, trades = self.calc(start_with)
 
                 win = end_with-start_with
-                #print(win)
+
+                if len(trades) > 3 and i==0:
+                    continue
+
+
+                API.log.log("equalizer_win.txt", "%s:%.8f (%.2f%%)" % (self.get_symbol(), win, win/start_with * 100))
+                for trade in trades:
+                    API.log.log("equalizer_win.txt", "%s" % trade)
+
                 if win > 0:
+                    for trade in trades:
+                        pair = trade.get_pair()
+                        exchange = pair.get_exchange()
+                        print(trade)
+                        if exchange.get_minimum_amount(pair.get_base_token()) > trade.get_amount_base():
+                            print("Not enougth")
+                            return
+                        if exchange.get_minimum_amount(pair.get_quote_token()) > trade.get_amount_quote():
+                            print("Not enougth")
+                            return
                     best_win.append((win, start_with, end_with, trades))
                 else:
                     break
                 i = i + 1
-            except Exception:
+            except Exception as e:
+                print(e)
                 break
 
         if len(best_win) > 0:
             best_win = sorted(best_win, key=lambda entry: entry[0], reverse=True)
-            self.amount = best_win[0][1]
             self.calc(best_win[0][1])
             self.printWin(best_win[0])
 
@@ -159,3 +179,10 @@ class Equalizer():
 
     def get_symbol(self):
         return self.ticker
+
+    def execute(self, trades):
+        for trade in trades:
+
+            print(trade.get_pair().get_exchange().client.create_order(trade.get_pair().get_exchange().kp, trade.get_pair().get_symbol(),
+                                                                     trade.get_trade_block().lower(), trade.get_price(),
+                                                                     trade.get_total()))

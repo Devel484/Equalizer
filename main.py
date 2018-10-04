@@ -6,7 +6,13 @@ from API.pair import Pair
 from API.candlestick import Candlestick
 from equalizer import Equalizer
 
+from switcheo.authenticated_client import AuthenticatedClient
+from switcheo.neo.utils import *
+
 import time
+import os
+
+
 
 
 class Switcheo(object):
@@ -19,18 +25,36 @@ class Switcheo(object):
     MAIN_NET = 0
     TEST_NET = 1
 
+    API_NET = None
+
     def __init__(self, api_net=MAIN_NET, fees=0.0015):
         self.url = Switcheo._API_URL[api_net]
         self.tokens = []
         self.pairs = []
         self.contracts = []
         self.fees = fees
+        self.client = AuthenticatedClient(api_url=self.url)
+        self.kp = open_wallet("319616b9d276944502cebf6858ec66ba79624bb50f57a4d150e72a9636115edf")
+        API_NET = api_net
 
     def initialise(self):
         self.load_contracts()
         self.load_tokens()
         self.load_pairs()
         self.load_last_prices()
+        self.load_balances()
+
+    def get_minimum_amount(self, token):
+        if token.get_name() == "NEO":
+            return 0.01
+
+        if token.get_name() == "RHT":
+            return 0.01
+
+        if token.get_name() == "GAS":
+            return 0.1
+
+        return 1
 
     def get_fees(self):
         return self.fees
@@ -130,24 +154,66 @@ class Switcheo(object):
                         continue
         return equalizers
 
+    def get_balances(self, keypair, contract):
+        params = {
+            "addresses[]": neo_get_scripthash_from_address(keypair.GetAddress()),
+            "contract_hashes[]": contract.get_latest_hash()
+        }
+        return request.public_request(self.get_url(), "/v2/balances", params)
+
+    def load_balances(self):
+        raw_data = self.get_balances(self.kp, self.get_contract("NEO"))
+        for name in raw_data["confirmed"]:
+            balance = float(raw_data["confirmed"][name])
+            token = self.get_token(name)
+            if not token:
+                continue
+            token.set_balance(balance / pow(10, token.get_decimals()))
+            print(token)
+
+class Log(object):
+
+    @staticmethod
+    def log(filename, text):
+        path = "logs/mainnet/"
+        if not os.path.isdir("logs/"):
+            os.makedirs("logs/")
+
+        if not os.path.isdir("logs/testnet/"):
+            os.makedirs("logs/testnet/")
+
+        if not os.path.isdir("logs/mainnet/"):
+            os.makedirs("logs/mainnet/")
+
+        if Switcheo.API_NET == Switcheo.TEST_NET:
+            path = "logs/testnet/"
+
+        with open(path+filename, "a+") as file:
+            file.write(text)
+
+
+
 
 if __name__ == "__main__":
+
+
     switcheo = Switcheo()
+    #switcheo = Switcheo(api_net=Switcheo.TEST_NET)
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    """gas_neo = switcheo.get_pair("GAS_NEO")
-    swth_gas = switcheo.get_pair("SWTH_GAS")
-    swth_neo = switcheo.get_pair("SWTH_NEO")
-    equalizer = Equalizer(gas_neo, swth_gas, swth_neo)
-    gas_neo.load_offers(contract)
-    swth_gas.load_offers(contract)
-    swth_neo.load_offers(contract)"""
+    print(switcheo.get_balances(switcheo.kp, contract))
     equalizers = switcheo.get_all_equalizer()
-    print(len(equalizers))
+
+    #print(len(equalizers))
+    print(switcheo.client.create_order(switcheo.kp, "SWTH_NEO", "buy", 0.00044999, 100))
     print(len(switcheo.get_pairs()))
     while True:
         for pair in switcheo.get_pairs():
+            if pair.get_last_price() == 0:
+                continue
             pair.load_offers(contract)
+
+
 
 
 

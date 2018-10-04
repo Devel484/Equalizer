@@ -16,8 +16,14 @@ class Offer(object):
     def get_quote_amount(self):
         return self.quote_amount
 
+    def add_quote_amount(self, amount):
+        self.quote_amount = self.quote_amount + amount
+
     def get_base_amount(self):
         return self.base_amount
+
+    def add_base_amount(self, amount):
+        self.base_amount = self.base_amount + amount
 
     def get_price(self):
         return self.price

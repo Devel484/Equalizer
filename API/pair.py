@@ -3,6 +3,7 @@ from API.candlestick import Candlestick
 from API.order_book import OrderBook
 from API.trade import Trade
 from API.offer import Offer
+import API.log as log
 
 
 class Pair(object):
@@ -63,10 +64,11 @@ class Pair(object):
             quote_amount = quote_amount / pow(10, self.get_quote_token().get_decimals())
             base_amount = base_amount / pow(10, self.get_base_token().get_decimals())
 
-            price = base_amount / quote_amount
+            price = float("%.8f" % (base_amount / quote_amount))
 
             self.offers.append(Offer(way, quote_amount, base_amount, price))
         self.orderbook = OrderBook(self, self.offers)
+        log.log("pair.txt", "%s: updated" % self.get_symbol())
         self.fire_on_update()
         return self.offers
 
