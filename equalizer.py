@@ -1,13 +1,12 @@
-from API.pair import Pair
+
 import API.log
 import time
 from API.trade import Trade
 
-class Equalizer():
+
+class Equalizer(object):
 
     def __init__(self, start_pair, middle_pair, end_pair):
-        # MAN-BTC -> MAN-ETH -> ETH-BTC
-        # BTC-MAN-ETH-BTC
         self.outter_currency = start_pair.get_equal_token(end_pair)
         self.inner_first_currency = start_pair.get_equal_token(middle_pair)
         self.inner_second_currency = middle_pair.get_equal_token(end_pair)
@@ -63,28 +62,25 @@ class Equalizer():
         if self.end_pair.get_orderbook().get_timestamp() > self.timestamp:
             self.timestamp = self.end_pair.get_orderbook().get_timestamp()
 
-        first =  min(self.start_pair.get_orderbook().get_timestamp(), self.middle_pair.get_orderbook().get_timestamp(),
-                     self.end_pair.get_orderbook().get_timestamp())
+        first = min(self.start_pair.get_orderbook().get_timestamp(), self.middle_pair.get_orderbook().get_timestamp(),
+                    self.end_pair.get_orderbook().get_timestamp())
 
         self.spread = self.timestamp - first
 
         self.get_best_amount()
 
-
-    def printWin(self, calc):
-        win =calc[0]
+    def print_win(self, calc):
+        win = calc[0]
         amount = calc[1]
         ftime = time.strftime('%Y-%m-%d %H:%M:%S:', time.localtime(self.timestamp))
         percentage = win/amount * 100
-        API.log.log_and_print("equalizer_win.txt", "[%s]%s use %16.8f %s to make %16.8f %s (%.3f%%) orderbook spread: %.3fs" %(ftime, self.ticker, amount/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(),
-                                                         win/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(), percentage, self.get_spread()))
+        API.log.log_and_print("equalizer_win.txt", "[%s]%s use %16.8f %s to make %16.8f %s (%.3f%%) orderbook spread: %.3fs" %
+              (ftime, self.ticker, amount/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(),
+               win/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(), percentage,
+               self.get_spread()))
 
         for trade in calc[3]:
-            API.log.log_and_print("equalizer_win.txt", str(trade))
-        """try:
-            self.execute(calc[3])
-        except Exception as e:
-            print(e)"""
+            API.log.log_and_print("equalizer_win.txt", trade)
         return
 
     def calc(self, amount):
@@ -160,10 +156,6 @@ class Equalizer():
 
                     best_win.append((win, start_with, end_with, trades))
                 else:
-                    if percentage > -10:
-                        API.log.log("equalizer_almost.txt", "%s:%.8f (%.2f%%)" % (self.get_symbol(), win/pow(10, self.outter_currency.get_decimals()), percentage))
-                        for trade in trades:
-                            API.log.log("equalizer_almost.txt", "%s" % trade)
                     break
                 i = i + 1
             except Exception as e:
@@ -172,84 +164,20 @@ class Equalizer():
 
         if len(best_win) > 0:
             best_win = sorted(best_win, key=lambda entry: entry[0], reverse=True)
-            self.calc(best_win[0][1])
-            self.printWin(best_win[0])
+            self.print_win(best_win[0])
 
     def get_symbol(self):
         return self.ticker
 
-    def execute(self, trades):
-        for trade in trades:
+    @staticmethod
+    def get_all_equalizer(pairs):
+        equalizers = []
+        for start_pair in pairs:
+            for middle_pair in pairs:
+                for end_pairs in pairs:
+                    try:
+                        equalizers.append(Equalizer(start_pair, middle_pair, end_pairs))
+                    except ValueError:
+                        continue
+        return equalizers
 
-            pair = trade.get_pair()
-            origin_currency = pair.get_quote_token()
-            target_currency = pair.get_base_token()
-            way = trade.get_way()
-            way_string = "buy"
-            if way == Trade.WAY_BUY:
-                origin_currency = pair.get_base_token()
-                target_currency = pair.get_quote_token()
-                way_string = "sell"
-
-            if origin_currency.get_balance() < pair.get_exchange().get_minimum_amount(origin_currency):
-                return
-
-            want_amount = trade.get_offer()
-            offer_amount = trade.get_want()
-            price = float("%.8f" % trade.get_price())
-
-            if offer_amount > origin_currency.get_balance():
-                want_amount = int(origin_currency.get_balance()/offer_amount * want_amount)
-
-            API.log.log("execute.txt", "price before: %.8f, offer amount before: %s" % (price, offer_amount))
-            """
-            reduce risk of not enough balance
-            """
-            """if way == Trade.WAY_SELL:
-                want_amount = int(offer_amount / price)
-                offer_amount = int(want_amount*price)
-                price = float("%.8f" % (offer_amount/want_amount))
-            else:
-                want_amount = int(price * offer_amount)
-                offer_amount = int(want_amount/price)
-                price = float("%.8f" % (offer_amount/want_amount))"""
-
-            API.log.log("execute.txt", "price after: %.8f, offer amount after: %s" % (price, offer_amount))
-
-
-
-            #TODO workaround
-            offer_amount = offer_amount / pow(10, 8)
-            want_amount = want_amount / pow(10, 8)
-
-            API.log.log("execute.txt", "%s: %s price:%.8f %.8f" % (pair.get_symbol(), trade.get_trade_block().lower(), price, offer_amount))
-
-            try:
-                order_details = trade.get_pair().get_exchange().client.create_order(pair.get_exchange().kp, pair.get_symbol(),
-                                                                     trade.get_trade_block().lower(), price,
-                                                                     want_amount)
-                API.log.log_and_print("execute_order.txt", str(order_details))
-                fill_offer = 0
-                fill_want = 0
-                for fills in order_details["fills"]:
-                    print(fills)
-                    fill_offer = int(fill_offer + float(fills["fill_amount"]))
-                    fill_want = int(fill_want + float(fills["want_amount"]))
-                offer_amount = int(offer_amount * pow(10,8))
-                want_amount = int(want_amount * pow(10,8))
-
-                API.log.log_and_print("execute_order.txt", "%s %s %s" % (fill_offer, offer_amount,  fill_offer/offer_amount*100))
-                API.log.log_and_print("execute_order.txt", "%s %s %s" % (fill_want, want_amount,  fill_want/want_amount*1))
-                if fill_want/want_amount*100 > 0.98 and fill_offer/offer_amount*100 <= 100:
-                    r = trade.get_pair().get_exchange().client.execute_order(order_details, pair.get_exchange().kp)
-                    API.log.log_and_print("execute_order.txt", "Response: %s" %r)
-                    loaded = trade.get_pair().get_exchange().client.get_orders(self, trade.get_pair().get_exchange().get_scripthash(), pair=pair.get_symbol())
-                    API.log.log_and_print("execute_order.txt", "load order: %s" % loaded)
-                    pair.get_orderbook().set_timestamp(0)
-                    trade.get_pair().get_exchange().load_balances()
-
-
-            except Exception as e:
-                print(e)
-                return
-        trades[0].get_pair().get_exchange().load_balances()

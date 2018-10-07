@@ -34,8 +34,8 @@ class Pair(object):
         self.candlesticks = []
         for entry in raw_candles:
             self.candlesticks.append(Candlestick(self, int(entry["time"]), float(entry["open"]),
-                                            float(entry["close"]), float(entry["high"]), float(entry["low"]),
-                                            float(entry["volume"]), float(entry["quote_volume"]), interval))
+                                     float(entry["close"]), float(entry["high"]), float(entry["low"]),
+                                     float(entry["volume"]), float(entry["quote_volume"]), interval))
         return self.candlesticks
 
     def load_last_price(self):
@@ -82,9 +82,6 @@ class Pair(object):
     def is_updated(self):
         return self.orderbook is not None and self.orderbook.is_updated()
 
-    def __str__(self):
-        return "Pair:%s Last Price:%.8f" % (self.get_symbol(), self.get_last_price())
-
     def get_equal_token(self, tp):
         if self.base == tp.get_base_token() or self.base == tp.get_quote_token():
             return self.base
@@ -103,3 +100,6 @@ class Pair(object):
 
     def set_candlestick_24h(self, candlestick):
         self.candlestick_24h = candlestick
+
+    def __str__(self):
+        return "Pair:%s Last Price:%.8f" % (self.get_symbol(), self.get_last_price())

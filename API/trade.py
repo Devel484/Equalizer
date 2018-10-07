@@ -49,10 +49,9 @@ class Trade(object):
 
     def get_want(self):
         if self.way == Trade.WAY_SELL:
-            return int(self.amount_quote + self.fees)
+            return self.amount_quote + self.fees
         else:
-            return int(self.amount_base + self.fees)
-
+            return self.amount_base + self.fees
 
     def get_pair(self):
         return self.pair
@@ -90,7 +89,7 @@ class Trade(object):
     def is_active(self):
         return self.state == Trade.STATE_ACTIVE
 
-    def is_cancaled(self):
+    def is_canceled(self):
         return self.state == Trade.STATE_CANCELED
 
     def is_virtual(self):
@@ -105,6 +104,9 @@ class Trade(object):
     def get_fees(self):
         return self.fees
 
+    def get_fees_as_float(self):
+        return self.fees / pow(10, self.fee_currency.get_decimals())
+
     def is_market(self):
         return self.type == Trade.TRADE_TYPE_MARKET
 
@@ -113,26 +115,26 @@ class Trade(object):
 
     def __str__(self):
         return("%4s %8s %16.8f %4s for %16.8f %4s paying %16.8f %4s fees @ %.8f" %
-               (self.get_trade_block(), self.pair.get_symbol(),
-                (self.amount_quote/pow(10, self.pair.get_quote_token().get_decimals())),
+               (self.get_trade_way_as_string(), self.pair.get_symbol(),
+                self.get_amount_quote_as_float(),
                 self.pair.get_quote_token().get_name(),
-                (self.amount_base/pow(10, self.pair.get_base_token().get_decimals())),
+                self.get_amount_base_as_float(),
                 self.pair.get_base_token().get_name(),
-                (self.fees/pow(10, self.fee_currency.get_decimals())),
+                self.get_fees_as_float(),
                 self.fee_currency.get_name(),
                 self.price))
 
-    def get_trade_block(self):
+    def get_trade_way_as_string(self):
         if self.way == Trade.WAY_BUY:
-            return self.get_green_block()
-        return self.get_red_block()
+            return Trade.get_buy_string()
+        return Trade.get_sell_string()
 
-    def get_green_block(self):
-        #return '\033[92m'+"#"+'\033[0m'
+    @staticmethod
+    def get_buy_string():
         return "BUY"
 
-    def get_red_block(self):
-        #return '\033[91m'+"#"+'\033[0m'
+    @staticmethod
+    def get_sell_string():
         return "SELL"
 
     @staticmethod

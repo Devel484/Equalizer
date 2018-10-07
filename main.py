@@ -6,13 +6,7 @@ from API.pair import Pair
 from API.candlestick import Candlestick
 from equalizer import Equalizer
 
-from switcheo.authenticated_client import AuthenticatedClient
-from switcheo.neo.utils import *
-
-import API.log
 import time
-import os
-
 
 
 
@@ -34,9 +28,6 @@ class Switcheo(object):
         self.pairs = []
         self.contracts = []
         self.fees = fees
-        self.client = AuthenticatedClient(api_url=self.url)
-        self.kp = open_wallet("319616b9d276944502cebf6858ec66ba79624bb50f57a4d150e72a9636115edf")
-        API_NET = api_net
 
     def initialise(self):
         self.load_contracts()
@@ -44,9 +35,9 @@ class Switcheo(object):
         self.load_pairs()
         self.load_last_prices()
         self.load_24_hours()
-        self.load_balances()
 
-    def get_minimum_amount(self, token):
+    @staticmethod
+    def get_minimum_amount(token):
         if token.get_name() == "NEO":
             return 0.01 * pow(10, 8)
 
@@ -150,50 +141,19 @@ class Switcheo(object):
 
         return prices
 
-    def get_all_equalizer(self):
-        pairs = self.pairs
-        equalizers = []
-        for start_pair in pairs:
-            for middle_pair in pairs:
-                for end_pairs in pairs:
-                    try:
-                        equalizers.append(Equalizer(start_pair, middle_pair, end_pairs))
-                    except ValueError:
-                        continue
-        return equalizers
-
-    def get_balances(self, keypair, contract):
-        params = {
-            "addresses[]": neo_get_scripthash_from_address(keypair.GetAddress()),
-            "contract_hashes[]": contract.get_latest_hash()
-        }
-        return request.public_request(self.get_url(), "/v2/balances", params)
-
-    def load_balances(self):
-        for token in self.tokens:
-            token.set_balance(0)
-        raw_data = self.get_balances(self.kp, self.get_contract("NEO"))
-        for name in raw_data["confirmed"]:
-            balance = float(raw_data["confirmed"][name])
-            token = self.get_token(name)
-            if not token:
-                continue
-            token.set_balance(balance)
-
-            API.log.log("balances.txt", token)
-
-    def get_scripthash(self):
-        return neo_get_scripthash_from_address(self.kp.GetAddress())
-
 
 if __name__ == "__main__":
 
-
+    print("Equalizer searches for instant profits with the perfect amount.")
+    print("If instant profit is found it will printed to the console, keep waiting")
+    print("Use 'tail -f /ogs/mainnet/equalizer_all.txt' (only linux) to see all results even loses.")
+    print("Only trades with profit will be printed.")
     switcheo = Switcheo()
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    equalizers = switcheo.get_all_equalizer()
+    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs())
 
+    print("Start loading offers")
     while True:
         try:
             for pair in switcheo.get_pairs():
@@ -203,7 +163,6 @@ if __name__ == "__main__":
                 time.sleep(0.1)
             switcheo.load_last_prices()
             switcheo.load_24_hours()
-            switcheo.load_balances()
         except Exception as e:
             print(e)
 

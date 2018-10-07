@@ -2,8 +2,8 @@ from API.trade import Trade
 
 import time
 
-class OrderBook(object):
 
+class OrderBook(object):
 
     def __init__(self, pair, offers=None):
         self.book = {}
@@ -44,7 +44,7 @@ class OrderBook(object):
         self.book[Trade.WAY_BUY] = []
         self.book[Trade.WAY_SELL] = []
 
-    def print(self, way, amount):
+    def print(self):
         print(self.timestamp)
         for i in range(len(self.book[Trade.WAY_SELL])-1,-1,-1):
             print("%.10f\t\t%.8f" % (self.book[Trade.WAY_SELL][i].get_price(),
@@ -75,39 +75,23 @@ class OrderBook(object):
 
     def taker(self, amount, token):
 
-        '''
-        Pair:MAN-BTC
-        Currency:BTC
-        => Buy
-        Price(i.e. 0.00003560): For each MAN is an amount BTC needed
-        '''
         if self.pair.get_base_token() == token:
             return self.buy(amount)
 
-        '''
-        Pair:MAN-BTC
-        Currency:MAN
-        => SELL
-        Price(i.e. 0.00003560): For each MAN you get an amount BTC
-        '''
         if self.pair.get_quote_token() == token:
             return self.sell(amount)
-
-    def round(self, a, precision):
-        return int(a * pow(10, precision))/pow(10, precision)
 
     def buy(self, amount):
         trades = []
         buy_amount = 0
         for i in range(len(self.book[Trade.WAY_SELL])):
             offer = self.book[Trade.WAY_SELL][i]
-            amount_quote = offer.get_quote_amount() # GAS
-            amount_base = offer.get_base_amount() # NEO
+            amount_quote = offer.get_quote_amount()
+            amount_base = offer.get_base_amount()
             price = offer.get_price()
 
             if amount_base >= amount:
                 tmp = int("%d" % (amount / price))
-                #tmp = int(amount / price)
                 trade = Trade(self.pair, Trade.WAY_BUY, price, amount, tmp, None)
                 buy_amount = buy_amount + trade.get_amount_quote()
                 trades.append(trade)
@@ -131,8 +115,8 @@ class OrderBook(object):
         sell_amount = 0
         for i in range(len(self.book[Trade.WAY_BUY])):
             offer = self.book[Trade.WAY_BUY][i]
-            amount_quote = offer.get_quote_amount() # GAS
-            amount_base = offer.get_base_amount() # NEO
+            amount_quote = offer.get_quote_amount()
+            amount_base = offer.get_base_amount()
             price = offer.get_price()
 
             if amount_quote >= amount:
