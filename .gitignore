@@ -1,0 +1,7 @@
+.idea/
+/logs/
+/venv/
+SwitcheoPyAPI.iml
+
+/__pycache__/
+/API/__pycache__/
