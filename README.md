@@ -4,5 +4,5 @@ This programm searches instant profit opportunities and print them in a python c
 
 Example Output:
 
-<img src="https://www2.pic-upload.de/thumb/36072649/20WIN.png"/>
+<img src="https://www2.pic-upload.de/img/36072683/20WIN.png"/>
 
