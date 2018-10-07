@@ -20,6 +20,9 @@ class OrderBook(object):
     def get_timestamp(self):
         return self.timestamp
 
+    def set_timestamp(self, timestamp):
+        self.timestamp = timestamp
+
     def get(self, price, way):
         for offer in self.book[way]:
             if offer.get_price() == price:
@@ -96,7 +99,6 @@ class OrderBook(object):
     def buy(self, amount):
         trades = []
         buy_amount = 0
-        amount = self.round(amount, self.pair.get_base_token().get_decimals())
         for i in range(len(self.book[Trade.WAY_SELL])):
             offer = self.book[Trade.WAY_SELL][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -104,11 +106,12 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_base >= amount:
-                tmp = self.round(amount / price, self.pair.get_quote_token().get_decimals())
+                tmp = int("%d" % (amount / price))
+                #tmp = int(amount / price)
                 trade = Trade(self.pair, Trade.WAY_BUY, price, amount, tmp, None)
                 buy_amount = buy_amount + trade.get_amount_quote()
                 trades.append(trade)
-                return trades, float("%%.%sf" % self.pair.get_quote_token().get_decimals() % buy_amount)
+                return trades, int(buy_amount)
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
@@ -126,7 +129,6 @@ class OrderBook(object):
     def sell(self, amount): # GAS
         trades = []
         sell_amount = 0
-        amount = self.round(amount, self.pair.get_quote_token().get_decimals())
         for i in range(len(self.book[Trade.WAY_BUY])):
             offer = self.book[Trade.WAY_BUY][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -134,11 +136,12 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_quote >= amount:
-                tmp = self.round(amount * price, self.pair.get_base_token().get_decimals())
+                tmp = amount * price
+                tmp = int(tmp)
                 trade = Trade(self.pair, Trade.WAY_SELL, price, tmp, amount, None)
                 sell_amount = sell_amount + trade.get_amount_base()
                 trades.append(trade)
-                return trades, float("%%.%sf" % self.pair.get_base_token().get_decimals() % sell_amount)
+                return trades, int(sell_amount)
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
@@ -163,7 +166,6 @@ class OrderBook(object):
 
     def reverse_buy(self, amount): # GAS
         trade_amount = 0
-        amount = int(amount * pow(10, self.pair.get_base_token().get_decimals())) / pow(10, self.pair.get_base_token().get_decimals())
         for i in range(len(self.book[Trade.WAY_SELL])):
             offer = self.book[Trade.WAY_SELL][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -172,7 +174,7 @@ class OrderBook(object):
 
             if amount_quote >= amount:
                 trade_amount = trade_amount + amount*price / (1 - self.pair.get_exchange().get_fees())
-                return float("%%.%sf" % self.pair.get_quote_token().get_decimals() % trade_amount)
+                return int(trade_amount)
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
@@ -187,7 +189,6 @@ class OrderBook(object):
 
     def reverse_sell(self, amount): # NEO
         trade_amount = 0
-        amount = int(amount * pow(10, self.pair.get_quote_token().get_decimals())) / pow(10, self.pair.get_quote_token().get_decimals())
         for i in range(len(self.book[Trade.WAY_BUY])):
             offer = self.book[Trade.WAY_BUY][i]
             amount_quote = offer.get_quote_amount() # GAS
@@ -196,7 +197,7 @@ class OrderBook(object):
 
             if amount_base >= amount:
                 trade_amount = trade_amount + amount/price / (1 - self.pair.get_exchange().get_fees())
-                return float("%%.%sf" % self.pair.get_base_token().get_decimals() % trade_amount)
+                return int(trade_amount)
 
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
@@ -227,11 +228,17 @@ class OrderBook(object):
             return Trade.WAY_BUY
 
     def get_sum(self, index, way, token):
+        if len(self.book[way]) <= index:
+            return None
+
         if token == self.pair.get_quote_token():
             return self.book[way][index].get_sum_quote()
         else:
             return self.book[way][index].get_sum_base()
 
     def get_sum_after_fees(self, index, way, token):
-        return self.get_sum(index, way, token) * (1-self.pair.get_exchange().get_fees())
+        sum = self.get_sum(index, way, token)
+        if not sum:
+            return None
+        return int(sum * (1-self.pair.get_exchange().get_fees()))
 

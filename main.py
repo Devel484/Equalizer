@@ -9,6 +9,7 @@ from equalizer import Equalizer
 from switcheo.authenticated_client import AuthenticatedClient
 from switcheo.neo.utils import *
 
+import API.log
 import time
 import os
 
@@ -42,19 +43,20 @@ class Switcheo(object):
         self.load_tokens()
         self.load_pairs()
         self.load_last_prices()
+        self.load_24_hours()
         self.load_balances()
 
     def get_minimum_amount(self, token):
         if token.get_name() == "NEO":
-            return 0.01
+            return 0.01 * pow(10, 8)
 
         if token.get_name() == "RHT":
-            return 0.01
+            return 0.01 * pow(10, 8)
 
         if token.get_name() == "GAS":
-            return 0.1
+            return 0.1 * pow(10, 8)
 
-        return 1
+        return 1 * pow(10, 8)
 
     def get_fees(self):
         return self.fees
@@ -118,17 +120,23 @@ class Switcheo(object):
         return None
 
     def load_24_hours(self):
-        raw_candles = request.public_request(self.get_url(), "/v2/tickers/candlesticks")
+        raw_candles = request.public_request(self.get_url(), "/v2/tickers/last_24_hours")
         candlesticks = []
         timestamp = self.get_timestamp() - 1*60*60*24
+        for token in self.tokens:
+            token.set_volume(0)
         for entry in raw_candles:
             pair = self.get_pair(entry["pair"])
             if not pair:
                 continue
-            candlesticks.append(Candlestick(pair, timestamp, float(entry["open"]),
-                                            float(entry["close"]), float(entry["high"]), float(entry["low"]),
-                                            float(entry["volume"]), float(entry["quote_volume"]),
-                                            Candlestick.INTERVAL_MIN_1440))
+            candlestick = Candlestick(pair, timestamp, float(entry["open"]),
+                                      float(entry["close"]), float(entry["high"]), float(entry["low"]),
+                                      float(entry["volume"]), float(entry["quote_volume"]),
+                                      Candlestick.INTERVAL_MIN_1440)
+            candlesticks.append(candlestick)
+            pair.set_candlestick_24h(candlestick)
+            pair.get_base_token().add_volume(candlestick.get_base_volume())
+            pair.get_quote_token().add_volume(candlestick.get_quote_volume())
         return candlesticks
 
     def load_last_prices(self):
@@ -162,56 +170,42 @@ class Switcheo(object):
         return request.public_request(self.get_url(), "/v2/balances", params)
 
     def load_balances(self):
+        for token in self.tokens:
+            token.set_balance(0)
         raw_data = self.get_balances(self.kp, self.get_contract("NEO"))
         for name in raw_data["confirmed"]:
             balance = float(raw_data["confirmed"][name])
             token = self.get_token(name)
             if not token:
                 continue
-            token.set_balance(balance / pow(10, token.get_decimals()))
-            print(token)
+            token.set_balance(balance)
 
-class Log(object):
+            API.log.log("balances.txt", token)
 
-    @staticmethod
-    def log(filename, text):
-        path = "logs/mainnet/"
-        if not os.path.isdir("logs/"):
-            os.makedirs("logs/")
-
-        if not os.path.isdir("logs/testnet/"):
-            os.makedirs("logs/testnet/")
-
-        if not os.path.isdir("logs/mainnet/"):
-            os.makedirs("logs/mainnet/")
-
-        if Switcheo.API_NET == Switcheo.TEST_NET:
-            path = "logs/testnet/"
-
-        with open(path+filename, "a+") as file:
-            file.write(text)
-
-
+    def get_scripthash(self):
+        return neo_get_scripthash_from_address(self.kp.GetAddress())
 
 
 if __name__ == "__main__":
 
 
     switcheo = Switcheo()
-    #switcheo = Switcheo(api_net=Switcheo.TEST_NET)
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    print(switcheo.get_balances(switcheo.kp, contract))
     equalizers = switcheo.get_all_equalizer()
 
-    #print(len(equalizers))
-    print(switcheo.client.create_order(switcheo.kp, "SWTH_NEO", "buy", 0.00044999, 100))
-    print(len(switcheo.get_pairs()))
     while True:
-        for pair in switcheo.get_pairs():
-            if pair.get_last_price() == 0:
-                continue
-            pair.load_offers(contract)
+        try:
+            for pair in switcheo.get_pairs():
+                if pair.get_candlestick_24h() is None or pair.get_candlestick_24h().get_volume() == 0:
+                    continue
+                pair.load_offers(contract)
+                time.sleep(0.1)
+            switcheo.load_last_prices()
+            switcheo.load_24_hours()
+            switcheo.load_balances()
+        except Exception as e:
+            print(e)
 
 
 

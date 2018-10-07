@@ -1,5 +1,6 @@
 
 import os
+import time
 
 
 def log(filename, text):
@@ -14,6 +15,11 @@ def log(filename, text):
         os.makedirs("logs/mainnet/")
 
     f = open(path+filename, "a")
-    f.write(str(text)+"\n")
+    f.write(time.strftime('[%Y-%m-%d %H:%M:%S]:', time.localtime(time.time()))+str(text)+"\n")
     f.flush()
     f.close()
+
+
+def log_and_print(filename, text):
+    log(filename, text)
+    print(text)

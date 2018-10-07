@@ -14,6 +14,7 @@ class Pair(object):
         self.base = base
         self.last_price = 0
         self.candlesticks = []
+        self.candlestick_24h = None
         self.offers = []
         self.orderbook = None
         self.on_update_method = []
@@ -61,10 +62,10 @@ class Pair(object):
 
                 quote_amount = offer["available_amount"]
                 base_amount = offer["want_amount"]
-            quote_amount = quote_amount / pow(10, self.get_quote_token().get_decimals())
-            base_amount = base_amount / pow(10, self.get_base_token().get_decimals())
+            quote_amount = quote_amount
+            base_amount = base_amount
 
-            price = float("%.8f" % (base_amount / quote_amount))
+            price = base_amount / quote_amount
 
             self.offers.append(Offer(way, quote_amount, base_amount, price))
         self.orderbook = OrderBook(self, self.offers)
@@ -96,3 +97,9 @@ class Pair(object):
     def fire_on_update(self):
         for callback in self.on_update_method:
             callback()
+
+    def get_candlestick_24h(self):
+        return self.candlestick_24h
+
+    def set_candlestick_24h(self, candlestick):
+        self.candlestick_24h = candlestick
