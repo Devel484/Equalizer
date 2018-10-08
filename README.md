@@ -8,9 +8,6 @@ The output looks like this and will only output if a profit has been found. Othe
 
 ![Image description](readme.png)
 
-(time stamp)(pairs) use (amount)(token) to make (absolute profit)(%)(time spread between offer books)<br>
-(type) (pair)(quota amount)(quota token) for (base amount)(base token) paying (amount)(token) fees
-
 # ATTENTION!
 The software has been sufficiently tested so that the calculated profit is correct, except for deviations due to rounding errors in the millionth part. This may result in Switcheo not accepting the proposed amount and having to change it manually. If this happens, simply round the amount down. Example: Purchase amount: 0.12345678 round to 0.12345670. This should make it possible to buy or sell again.  Due to unexplained reasons, the API may not provide current offers. So it can happen that the web interface of Switcheo displays the current offers while the API delivers outdated offers.
 This is why neither I nor the Switcheo team are responsible for the correctness of the offers found. The user must independently check whether all listed amounts are also offered and available in the web interface. The user is exclusively liable for any losses and damages incurred.
