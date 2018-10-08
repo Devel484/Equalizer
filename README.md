@@ -8,7 +8,7 @@ The output looks like this and will only output if a profit has been found. Othe
 
 ![Image description](readme.png)
 
-"[time stamp]:[exchange direction] use [initial amount][start token] to make [absolute profit][start token](Percentage profit) [time difference between the offer books in seconds]
+"[time stamp]:[pairs] use [initial amount][token] to make [absolute profit][token](%) [time spread between offer books]<br>
 [BUY/SELL] [pair][quota amount][quota token] for [base amount][base token]] paying [amount][token] fees"
 
 # ATTENTION!
