@@ -2,6 +2,7 @@
 import API.log
 import time
 from API.trade import Trade
+from API.switcheo import Switcheo
 
 
 class Equalizer(object):
@@ -72,10 +73,9 @@ class Equalizer(object):
     def print_win(self, calc):
         win = calc[0]
         amount = calc[1]
-        ftime = time.strftime('%Y-%m-%d %H:%M:%S:', time.localtime(self.timestamp))
         percentage = win/amount * 100
-        API.log.log_and_print("equalizer_win.txt", "[%s]%s use %16.8f %s to make %16.8f %s (%.3f%%) orderbook spread: %.3fs" %
-              (ftime, self.ticker, amount/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(),
+        API.log.log_and_print("equalizer_win.txt", "%s use %16.8f %s to make %16.8f %s (%.3f%%) orderbook spread: %.3fs" %
+              (self.ticker, amount/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(),
                win/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(), percentage,
                self.get_spread()))
 
@@ -181,3 +181,27 @@ class Equalizer(object):
                         continue
         return equalizers
 
+
+if __name__ == "__main__":
+
+    print("Equalizer searches for instant profits with the perfect amount.")
+    print("If instant profit is found it will printed to the console, keep waiting")
+    print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even loses.")
+    print("Only trades with profit will be printed.")
+    switcheo = Switcheo()
+    switcheo.initialise()
+    contract = switcheo.get_contract("NEO")
+    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs())
+
+    print("Start loading offers")
+    while True:
+        try:
+            for pair in switcheo.get_pairs():
+                if pair.get_candlestick_24h() is None or pair.get_candlestick_24h().get_volume() == 0:
+                    continue
+                pair.load_offers(contract)
+                time.sleep(0.1)
+            switcheo.load_last_prices()
+            switcheo.load_24_hours()
+        except Exception as e:
+            print(e)
