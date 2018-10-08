@@ -160,5 +160,5 @@ class Trade(object):
                 amount_base = trade.get_total()
             price = trade.get_price()
         if amount_quote == 0 or amount_base == 0:
-            return None
+            raise ValueError("Amount is Zero")
         return Trade(pair, way, price, amount_base, amount_quote, timestamp)

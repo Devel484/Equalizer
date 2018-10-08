@@ -117,6 +117,10 @@ class Equalizer(object):
                 if max_possible_start > max_possible_middle:
                     max_possible_start = max_possible_middle
 
+                if self.start_pair.get_exchange().get_minimum_amount(self.inner_first_currency) > max_possible_start:
+                    i = i + 1
+                    continue
+
                 max_possible_middle = middle_market.get_sum_after_fees(i, middle_market.get_maker_trade_way(self.inner_first_currency), self.inner_second_currency)
                 max_possible_end = end_market.get_sum(i, end_market.get_maker_trade_way(self.inner_second_currency), self.inner_second_currency)
 
@@ -125,6 +129,9 @@ class Equalizer(object):
 
                 if max_possible_middle > max_possible_end:
                     max_possible_middle = max_possible_end
+                    if self.start_pair.get_exchange().get_minimum_amount(self.inner_second_currency) > max_possible_middle:
+                        i = i + 1
+                        continue
                     tmp = self.middle_pair.get_orderbook().reverse_taker(max_possible_middle, self.inner_first_currency)
                     if tmp < max_possible_start:
                         max_possible_start = tmp
@@ -160,6 +167,7 @@ class Equalizer(object):
                 i = i + 1
             except Exception as e:
                 print(e)
+                continue
                 break
 
         if len(best_win) > 0:
