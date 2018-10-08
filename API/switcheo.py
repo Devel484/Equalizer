@@ -4,10 +4,6 @@ from API.contract import Contract
 from API.token import Token
 from API.pair import Pair
 from API.candlestick import Candlestick
-from equalizer import Equalizer
-
-import time
-
 
 
 class Switcheo(object):
@@ -140,34 +136,6 @@ class Switcheo(object):
                 pair.set_last_price(float(prices[quote][base]))
 
         return prices
-
-
-if __name__ == "__main__":
-
-    print("Equalizer searches for instant profits with the perfect amount.")
-    print("If instant profit is found it will printed to the console, keep waiting")
-    print("Use 'tail -f /ogs/mainnet/equalizer_all.txt' (only linux) to see all results even loses.")
-    print("Only trades with profit will be printed.")
-    switcheo = Switcheo()
-    switcheo.initialise()
-    contract = switcheo.get_contract("NEO")
-    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs())
-
-    print("Start loading offers")
-    while True:
-        try:
-            for pair in switcheo.get_pairs():
-                if pair.get_candlestick_24h() is None or pair.get_candlestick_24h().get_volume() == 0:
-                    continue
-                pair.load_offers(contract)
-                time.sleep(0.1)
-            switcheo.load_last_prices()
-            switcheo.load_24_hours()
-        except Exception as e:
-            print(e)
-
-
-
 
 
 
