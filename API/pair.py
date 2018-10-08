@@ -56,16 +56,18 @@ class Pair(object):
         for offer in raw_offers:
             way = Trade.WAY_BUY
             quote_amount = offer["want_amount"]
-            base_amount = offer["available_amount"]
+            base_amount = offer["offer_amount"]
             if offer["offer_asset"] == self.get_quote_token().get_name():
                 way = Trade.WAY_SELL
 
-                quote_amount = offer["available_amount"]
+                quote_amount = offer["offer_amount"]
                 base_amount = offer["want_amount"]
-            quote_amount = quote_amount
-            base_amount = base_amount
 
             price = base_amount / quote_amount
+
+            if offer["available_amount"] < offer["offer_amount"]:
+                quote_amount = int(offer["available_amount"] / offer["offer_amount"] * quote_amount)
+                base_amount = int(offer["available_amount"] / offer["offer_amount"] * base_amount)
 
             self.offers.append(Offer(way, quote_amount, base_amount, price))
         self.orderbook = OrderBook(self, self.offers)

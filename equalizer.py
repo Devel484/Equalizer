@@ -186,7 +186,7 @@ if __name__ == "__main__":
 
     print("Equalizer searches for instant profits with the perfect amount.")
     print("If instant profit is found it will printed to the console, keep waiting")
-    print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even loses.")
+    print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even losses.")
     print("Only trades with profit will be printed.")
     switcheo = Switcheo()
     switcheo.initialise()

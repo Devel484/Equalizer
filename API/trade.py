@@ -114,15 +114,15 @@ class Trade(object):
         return self.type == Trade.TRADE_TYPE_LIMIT
 
     def __str__(self):
-        return("%4s %8s %16.8f %4s for %16.8f %4s paying %16.8f %4s fees @ %.8f" %
-               (self.get_trade_way_as_string(), self.pair.get_symbol(),
+        return("[%9s] %4s %16.8f %4s @ %.8f for %16.8f %4s paying %16.8f %4s fees" %
+               (self.pair.get_symbol(), self.get_trade_way_as_string(),
                 self.get_amount_quote_as_float(),
                 self.pair.get_quote_token().get_name(),
+                self.price,
                 self.get_amount_base_as_float(),
                 self.pair.get_base_token().get_name(),
                 self.get_fees_as_float(),
-                self.fee_currency.get_name(),
-                self.price))
+                self.fee_currency.get_name()))
 
     def get_trade_way_as_string(self):
         if self.way == Trade.WAY_BUY:
@@ -145,6 +145,7 @@ class Trade(object):
         amount_base = 0
         pair = trades[0].get_pair()
         way = trades[0].get_way()
+        price = trades[0].get_price()
         timestamp = trades[0].get_timestamp()
         for trade in trades:
             if trade.get_way() != way:
@@ -157,6 +158,7 @@ class Trade(object):
             else:
                 amount_quote = trade.get_amount_quote()
                 amount_base = trade.get_total()
+            price = trade.get_price()
         if amount_quote == 0 or amount_base == 0:
             return None
-        return Trade(pair, way, amount_base/amount_quote, amount_base, amount_quote, timestamp)
+        return Trade(pair, way, price, amount_base, amount_quote, timestamp)

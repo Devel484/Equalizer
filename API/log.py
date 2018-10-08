@@ -22,4 +22,4 @@ def log(filename, text):
 
 def log_and_print(filename, text):
     log(filename, text)
-    print(text)
+    print(time.strftime('[%Y-%m-%d %H:%M:%S]:', time.localtime(time.time()))+str(text))

@@ -5,3 +5,4 @@ SwitcheoPyAPI.iml
 
 /__pycache__/
 /API/__pycache__/
+*.pyc
