@@ -276,7 +276,7 @@ if __name__ == "__main__":
     print("If instant profit is found it will printed to the console, keep waiting")
     print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even losses.")
     print("Only trades with profit will be printed.")
-    switcheo = Switcheo(private_key="319616b9d276944502cebf6858ec66ba79624bb50f57a4d150e72a9636115edf")
+    switcheo = Switcheo(private_key="Change me")
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
     equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"))
