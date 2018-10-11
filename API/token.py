@@ -21,6 +21,9 @@ class Token(object):
     def set_balance(self, balance):
         self.balance = balance
 
+    def add_balance(self, balance):
+        self.balance = self.balance + balance
+
     def get_balance(self):
         return self.balance
 

@@ -17,7 +17,14 @@ class Pair(object):
         self.candlestick_24h = None
         self.offers = []
         self.orderbook = None
+        self.updating = False
         self.on_update_method = []
+
+    def is_updating(self):
+        return self.updating
+
+    def set_updating(self, b):
+        self.updating = b
 
     def get_quote_token(self):
         return self.quote
@@ -49,7 +56,12 @@ class Pair(object):
     def get_last_price(self):
         return self.last_price
 
-    def load_offers(self, contract):
+    def load_offers(self, contract=None):
+        if self.is_updating():
+            return
+        self.set_updating(True)
+        if contract is None:
+            contract = self.get_exchange().get_contract("NEO")
         params = {"blockchain": contract.get_chain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
         raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
         self.offers = []
@@ -63,7 +75,12 @@ class Pair(object):
                 quote_amount = offer["offer_amount"]
                 base_amount = offer["want_amount"]
 
+            if self.get_quote_token().get_decimals() == 0:
+                quote_amount = quote_amount * pow(10, 8)
+
             price = base_amount / quote_amount
+
+
 
             if offer["available_amount"] < offer["offer_amount"]:
                 quote_amount = int(offer["available_amount"] / offer["offer_amount"] * quote_amount)
@@ -73,6 +90,7 @@ class Pair(object):
         self.orderbook = OrderBook(self, self.offers)
         log.log("pair.txt", "%s: updated" % self.get_symbol())
         self.fire_on_update()
+        self.set_updating(False)
         return self.offers
 
     def get_orderbook(self):

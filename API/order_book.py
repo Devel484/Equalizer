@@ -44,15 +44,15 @@ class OrderBook(object):
         self.book[Trade.WAY_BUY] = []
         self.book[Trade.WAY_SELL] = []
 
-    def print(self):
-        print(self.timestamp)
-        for i in range(len(self.book[Trade.WAY_SELL])-1,-1,-1):
-            print("%.10f\t\t%.8f" % (self.book[Trade.WAY_SELL][i].get_price(),
-                                     self.book[Trade.WAY_SELL][i].get_quote_amount()))
-        print("-----------------------------------")
+    def __str__(self):
+        string = ""
+        for i in range(len(self.book[Trade.WAY_SELL])-1, -1, -1):
+            string = string + "%.10f\t\t%.8f\n" % (self.book[Trade.WAY_SELL][i].get_price(),
+                                                 self.book[Trade.WAY_SELL][i].get_quote_amount())
+        string = string + "-----------------------------------\n"
         for i in range(len(self.book[Trade.WAY_BUY])):
-            print("%.10f\t\t%.8f" % (self.book[Trade.WAY_BUY][i].get_price(),
-                                     self.book[Trade.WAY_BUY][i].get_quote_amount()))
+            string = string +"%.10f\t\t%.8f\n" % (self.book[Trade.WAY_BUY][i].get_price(),
+                                                self.book[Trade.WAY_BUY][i].get_quote_amount())
 
     def sum_up(self):
         sum_base = 0

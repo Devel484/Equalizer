@@ -42,13 +42,13 @@ class Trade(object):
         return self.total
 
     def get_offer(self):
-        if self.way == Trade.WAY_SELL:
+        if self.way == Trade.WAY_BUY:
             return self.amount_base
         else:
             return self.amount_quote
 
     def get_want(self):
-        if self.way == Trade.WAY_SELL:
+        if self.way == Trade.WAY_BUY:
             return self.amount_quote + self.fees
         else:
             return self.amount_base + self.fees
@@ -129,6 +129,9 @@ class Trade(object):
             return Trade.get_buy_string()
         return Trade.get_sell_string()
 
+    def create_order(self):
+        exchange = self.pair.get_exchange()
+
     @staticmethod
     def get_buy_string():
         return "BUY"
@@ -153,11 +156,11 @@ class Trade(object):
             if trade.get_pair() != pair:
                 raise TypeError("Trading pairs are different")
             if trade.get_way() == Trade.WAY_BUY:
-                amount_quote = trade.get_total()
-                amount_base = trade.get_amount_base()
+                amount_quote = amount_quote + trade.get_total()
+                amount_base = amount_base + trade.get_amount_base()
             else:
-                amount_quote = trade.get_amount_quote()
-                amount_base = trade.get_total()
+                amount_quote = amount_quote + trade.get_amount_quote()
+                amount_base = amount_base + trade.get_total()
             price = trade.get_price()
         if amount_quote == 0 or amount_base == 0:
             raise ValueError("Amount is Zero")

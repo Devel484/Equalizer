@@ -4,6 +4,12 @@ from API.contract import Contract
 from API.token import Token
 from API.pair import Pair
 from API.candlestick import Candlestick
+import API.log
+
+from switcheo.authenticated_client import AuthenticatedClient
+from neocore.KeyPair import KeyPair
+from switcheo.neo.utils import neo_get_scripthash_from_private_key
+from requests.exceptions import HTTPError
 
 
 class Switcheo(object):
@@ -18,12 +24,16 @@ class Switcheo(object):
 
     API_NET = None
 
-    def __init__(self, api_net=MAIN_NET, fees=0.0015):
+    def __init__(self, api_net=MAIN_NET, fees=0.0015, private_key=None):
         self.url = Switcheo._API_URL[api_net]
         self.tokens = []
         self.pairs = []
         self.contracts = []
         self.fees = fees
+        self.key_pair = None
+        self.client = AuthenticatedClient(api_url=self.url)
+        if private_key:
+            self.key_pair = KeyPair(bytes.fromhex(private_key))
 
     def initialise(self):
         self.load_contracts()
@@ -31,6 +41,7 @@ class Switcheo(object):
         self.load_pairs()
         self.load_last_prices()
         self.load_24_hours()
+        self.load_balances()
 
     @staticmethod
     def get_minimum_amount(token):
@@ -44,6 +55,9 @@ class Switcheo(object):
             return 0.1 * pow(10, 8)
 
         return 1 * pow(10, 8)
+
+    def get_key_pair(self):
+        return self.key_pair
 
     def get_fees(self):
         return self.fees
@@ -136,6 +150,67 @@ class Switcheo(object):
                 pair.set_last_price(float(prices[quote][base]))
 
         return prices
+
+    def load_balances(self):
+        params = {
+            "addresses": neo_get_scripthash_from_private_key(self.key_pair.PrivateKey),
+            "contract_hashes": self.get_contract("NEO").get_latest_hash()
+        }
+
+        raw_balances = request.public_request(self.get_url(), "/v2/balances", params)
+        for token in self.tokens:
+            token.set_balance(0)
+
+        for name in raw_balances["confirmed"]:
+            token = self.get_token(name)
+            token.set_balance(int(float(raw_balances["confirmed"][name])))
+
+    def load_orders(self, pair=None):
+        pair_name = ""
+        if pair:
+            pair_name = pair.get_symbol()
+        params = {
+            "address": neo_get_scripthash_from_private_key(self.key_pair.PrivateKey),
+            "contract_hash": self.get_contract("NEO").get_latest_hash(),
+            "pair": pair_name
+        }
+
+        return request.public_request(self.get_url(), "/v2/orders", params)
+
+
+
+    def send_order(self, trade):
+        want_amount = trade.get_want() / pow(10, 8)
+        price = trade.get_price()
+        order_details = None
+        try:
+            order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
+                                                     trade.get_trade_way_as_string().lower(), price, want_amount, False)
+            fill_want = 0
+            for fills in order_details["fills"]:
+                fill_want = int(fill_want + float(fills["want_amount"]))
+
+            API.log.log_and_print("excecute_order.txt", "create:"+str(order_details))
+            API.log.log_and_print("excecute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
+            if want_amount * pow(10, 8) <= fill_want*0.98:
+
+                order_details = self.client.execute_order(order_details, self.key_pair)
+                API.log.log_and_print("excecute_order.txt", "execute:"+str(order_details))
+                while True:
+                    loaded_orders = self.load_orders(trade.get_pair())
+                    again = False
+                    for order in loaded_orders:
+                        if order["id"] == order_details["id"]:
+                            if order["order_status"] != "completed":
+                                again = True
+                                break
+                    if not again:
+                        break
+                return order_details
+        except HTTPError as e:
+            API.log.log_and_print("API_response:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
+                                                                     e.response.text))
+
 
 
 
