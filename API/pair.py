@@ -19,6 +19,13 @@ class Pair(object):
         self.orderbook = None
         self.updating = False
         self.on_update_method = []
+        self.block = False
+
+    def is_blocked(self):
+        return self.block
+
+    def set_blocked(self, b):
+        self.block = b
 
     def is_updating(self):
         return self.updating

@@ -31,11 +31,8 @@ class Equalizer(object):
                                       self.outter_currency.get_name())
 
         self.start_pair = start_pair
-        #start_pair.add_on_update(self.update)
         self.middle_pair = middle_pair
-        #middle_pair.add_on_update(self.update)
         self.end_pair = end_pair
-        #end_pair.add_on_update(self.update)
 
         self.start_market = start_pair.get_orderbook()
         self.middle_market = middle_pair.get_orderbook()
@@ -57,29 +54,23 @@ class Equalizer(object):
         self.updating = b
 
     def update(self):
+        if time.time() - self.timestamp > 10:
+            self.set_updating(False)
         if self.is_updating():
             return
+        API.log.log("update.txt", "%s:%s" % (self.get_symbol(), self.is_updating()))
         self.set_updating(True)
         self.start_pair.load_offers()
         self.middle_pair.load_offers()
         self.end_pair.load_offers()
         if not self.start_pair.is_updated():
-            return
+            return self.set_updating(False)
 
         if not self.middle_pair.is_updated():
-            return
+            return self.set_updating(False)
 
         if not self.end_pair.is_updated():
-            return
-
-        """if self.start_pair.get_orderbook().get_timestamp() > self.timestamp:
-            self.timestamp = self.start_pair.get_orderbook().get_timestamp()
-
-        if self.middle_pair.get_orderbook().get_timestamp() > self.timestamp:
-            self.timestamp = self.middle_pair.get_orderbook().get_timestamp()
-
-        if self.end_pair.get_orderbook().get_timestamp() > self.timestamp:
-            self.timestamp = self.end_pair.get_orderbook().get_timestamp()"""
+            return self.set_updating(False)
 
         times = (self.start_pair.get_orderbook().get_timestamp(), self.middle_pair.get_orderbook().get_timestamp(),
                  self.end_pair.get_orderbook().get_timestamp())
@@ -89,6 +80,9 @@ class Equalizer(object):
 
         self.timestamp = latest
         self.spread = self.timestamp - first
+
+        if self.spread > 5:
+            return self.set_updating(False)
 
         self.get_best_amount()
         self.set_updating(False)
@@ -106,6 +100,7 @@ class Equalizer(object):
             API.log.log_and_print("equalizer_win.txt", trade)
 
         self.execute(calc[3])
+        self.reset_block()
         return
 
     def calc(self, amount):
@@ -128,7 +123,8 @@ class Equalizer(object):
 
         best_win = []
         i = 0
-        while True:
+        run = True
+        while run:
             try:
                 start_market = self.start_pair.get_orderbook()
                 middle_market = self.middle_pair.get_orderbook()
@@ -169,7 +165,7 @@ class Equalizer(object):
                 win = end_with-start_with
 
                 percentage = win/start_with * 100
-                log_string = "%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
+                log_string = ":%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
                                                                      win/pow(10, self.outter_currency.get_decimals()),
                                                                      percentage, self.get_spread())
 
@@ -186,6 +182,9 @@ class Equalizer(object):
                     for trade in trades:
                         pair = trade.get_pair()
                         exchange = pair.get_exchange()
+                        if pair.is_blocked():
+                            return
+                        pair.set_blocked(True)
                         if exchange.get_minimum_amount(pair.get_base_token()) > trade.get_amount_base():
                             return
                         if exchange.get_minimum_amount(pair.get_quote_token()) > trade.get_amount_quote():
@@ -193,6 +192,7 @@ class Equalizer(object):
 
                     best_win.append((win, start_with, end_with, trades))
                 else:
+                    API.log.log("update.txt", "%s break" % self.get_symbol())
                     if percentage > -10:
                         log_string = "%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
                                                                                win/pow(10, self.outter_currency.get_decimals()),
@@ -201,7 +201,8 @@ class Equalizer(object):
                         for trade in trades:
                             log_string = log_string + str(trade) + "\n"
                         API.log.log("equalizer_almost.txt", log_string)
-                        break
+
+                    break
                 i = i + 1
             except Exception as e:
                 print(e)
@@ -247,7 +248,8 @@ class Equalizer(object):
 
             if offer_amount > origin_currency.get_balance():
                 want_amount = int(origin_currency.get_balance()/offer_amount * want_amount)
-                if way == Trade.WAY_BUY:
+                offer_amount = origin_currency.get_balance()
+                if way == Trade.WAY_SELL:
                     trade = Trade(trade.get_pair(), trade.get_way(), trade.get_price(), want_amount,
                                   offer_amount, trade.get_timestamp())
                 else:
@@ -262,11 +264,17 @@ class Equalizer(object):
                 if not order_details:
                     return
                 target_currency.add_balance(want_amount)
+                origin_currency.add_balance(-offer_amount)
 
             except Exception as e:
                 API.log.log("execute.txt", "%s" % e)
                 API.log.log("execute.txt", "%s" % pair.get_orderbook())
                 return
+
+    def reset_block(self):
+        self.start_pair.set_blocked(False)
+        self.middle_pair.set_blocked(False)
+        self.end_pair.set_blocked(False)
 
 
 
@@ -276,7 +284,7 @@ if __name__ == "__main__":
     print("If instant profit is found it will printed to the console, keep waiting")
     print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even losses.")
     print("Only trades with profit will be printed.")
-    switcheo = Switcheo(private_key="Change me")
+    switcheo = Switcheo(private_key="319616b9d276944502cebf6858ec66ba79624bb50f57a4d150e72a9636115edf")
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
     equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"))

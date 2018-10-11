@@ -182,36 +182,38 @@ class Switcheo(object):
     def send_order(self, trade):
         want_amount = trade.get_want() / pow(10, 8)
         price = trade.get_price()
-        order_details = None
         try:
             order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
                                                      trade.get_trade_way_as_string().lower(), price, want_amount, False)
-            fill_want = 0
-            for fills in order_details["fills"]:
-                fill_want = int(fill_want + float(fills["want_amount"]))
 
-            API.log.log_and_print("excecute_order.txt", "create:"+str(order_details))
-            API.log.log_and_print("excecute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
-            if want_amount * pow(10, 8) <= fill_want*0.98:
-
-                order_details = self.client.execute_order(order_details, self.key_pair)
-                API.log.log_and_print("excecute_order.txt", "execute:"+str(order_details))
-                while True:
-                    loaded_orders = self.load_orders(trade.get_pair())
-                    again = False
-                    for order in loaded_orders:
-                        if order["id"] == order_details["id"]:
-                            if order["order_status"] != "completed":
-                                again = True
-                                break
-                    if not again:
-                        break
-                return order_details
         except HTTPError as e:
             API.log.log_and_print("API_response:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
                                                                      e.response.text))
+            want_amount = int(trade.get_want() / pow(10, 2)) / pow(10, 6)
+            order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
+                                                     trade.get_trade_way_as_string().lower(), price, want_amount, False)
 
+        fill_want = 0
+        for fills in order_details["fills"]:
+            fill_want = int(fill_want + float(fills["want_amount"]))
 
+        API.log.log_and_print("execute_order.txt", order_details)
+        API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
+        if int(want_amount * pow(10, 8)*0.98) <= fill_want:
+
+            order_details = self.client.execute_order(order_details, self.key_pair)
+            API.log.log_and_print("execute_order.txt", order_details)
+            while True:
+                loaded_orders = self.load_orders(trade.get_pair())
+                again = False
+                for order in loaded_orders:
+                    if order["id"] == order_details["id"]:
+                        if order["order_status"] != "completed":
+                            again = True
+                            break
+                if not again:
+                    break
+            return order_details
 
 
 
