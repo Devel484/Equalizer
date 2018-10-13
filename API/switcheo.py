@@ -3,6 +3,7 @@ import API.api_request as request
 from API.contract import Contract
 from API.token import Token
 from API.pair import Pair
+from API.trade import Trade
 from API.candlestick import Candlestick
 import API.log
 
@@ -190,28 +191,31 @@ class Switcheo(object):
             API.log.log_and_print("API_response:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
                                                                      e.response.text))
             want_amount = int(trade.get_want() / pow(10, 2)) / pow(10, 6)
+            API.log.log_and_print("execute.txt", "Changed amount: %.8f pair: %s" % (want_amount, trade.get_pair().get_symbol()))
             order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
                                                      trade.get_trade_way_as_string().lower(), price, want_amount, False)
 
         fill_want = 0
+        fee_amount = 0
         for fills in order_details["fills"]:
             fill_want = int(fill_want + float(fills["want_amount"]))
+            fee_amount = int(fee_amount + float(fills["fee_amount"]))
 
-        API.log.log_and_print("execute_order.txt", order_details)
+        target_currency = trade.get_pair().get_base_token()
+        way = trade.get_way()
+        if way == Trade.WAY_BUY:
+            target_currency = trade.get_pair().get_quote_token()
+
+        accept_want = int(want_amount * pow(10, 8)*0.98)
+
         API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
-        if int(want_amount * pow(10, 8)*0.98) <= fill_want:
+        if accept_want <= fill_want:
 
             order_details = self.client.execute_order(order_details, self.key_pair)
-            API.log.log_and_print("execute_order.txt", order_details)
+            #API.log.log_and_print("execute_order.txt", order_details)
             while True:
-                loaded_orders = self.load_orders(trade.get_pair())
-                again = False
-                for order in loaded_orders:
-                    if order["id"] == order_details["id"]:
-                        if order["order_status"] != "completed":
-                            again = True
-                            break
-                if not again:
+                self.load_balances()
+                if target_currency.get_balance() >= fill_want - fee_amount:
                     break
             return order_details
 

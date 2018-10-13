@@ -131,12 +131,16 @@ class Equalizer(object):
                 end_market = self.end_pair.get_orderbook()
                 max_possible_start = start_market.get_sum_after_fees(i, start_market.get_maker_trade_way(self.outter_currency), self.inner_first_currency)
                 max_possible_middle = middle_market.get_sum(i, middle_market.get_maker_trade_way(self.inner_first_currency), self.inner_first_currency)
+                balance = self.outter_currency.get_balance()
 
                 if not max_possible_start or not max_possible_middle:
                     break
 
                 if max_possible_start > max_possible_middle:
                     max_possible_start = max_possible_middle
+
+                if max_possible_start > balance:
+                    max_possible_start = balance
 
                 if self.start_pair.get_exchange().get_minimum_amount(self.inner_first_currency) > max_possible_start:
                     i = i + 1
@@ -260,11 +264,11 @@ class Equalizer(object):
 
             try:
                 order_details = exchange.send_order(trade)
-                API.log.log_and_print("execute_order.txt", str(order_details))
+                #API.log.log_and_print("execute_order.txt", str(order_details))
                 if not order_details:
                     return
-                target_currency.add_balance(want_amount)
-                origin_currency.add_balance(-offer_amount)
+                #target_currency.add_balance(want_amount)
+                #origin_currency.add_balance(-offer_amount)
 
             except Exception as e:
                 API.log.log("execute.txt", "%s" % e)
