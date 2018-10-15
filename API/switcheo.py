@@ -169,15 +169,27 @@ class Switcheo(object):
         return self.pairs
 
     def get_pairs(self):
+        """
+        :return: pairs
+        """
         return self.pairs
 
     def get_pair(self, symbol):
+        """
+        Get pair with symbol i.e. SWTH_NEO
+        :param symbol: symbol
+        :return: pair
+        """
         for pair in self.pairs:
             if pair.get_symbol() == symbol:
                 return pair
         return None
 
     def load_24_hours(self):
+        """
+        Load 24h candlestick for each pair
+        :return: list of objects
+        """
         raw_candles = request.public_request(self.get_url(), "/v2/tickers/last_24_hours")
         candlesticks = []
         timestamp = self.get_timestamp() - 1*60*60*24
@@ -198,6 +210,10 @@ class Switcheo(object):
         return candlesticks
 
     def load_last_prices(self):
+        """
+        Load price of each pair
+        :return: list of prices
+        """
         prices = request.public_request(self.get_url(), "/v2/tickers/last_price")
         for quote in prices:
             for base in prices[quote]:
@@ -209,6 +225,10 @@ class Switcheo(object):
         return prices
 
     def load_balances(self):
+        """
+        Load all balances from the exchange and updates them in the tokens
+        :return: balances
+        """
         params = {
             "addresses": neo_get_scripthash_from_private_key(self.key_pair.PrivateKey),
             "contract_hashes": self.get_contract("NEO").get_latest_hash()
@@ -221,8 +241,14 @@ class Switcheo(object):
         for name in raw_balances["confirmed"]:
             token = self.get_token(name)
             token.set_balance(int(float(raw_balances["confirmed"][name])))
+        return raw_balances
 
     def load_orders(self, pair=None):
+        """
+        Load all orders
+        :param pair: orders from pair
+        :return: orders
+        """
         pair_name = ""
         if pair:
             pair_name = pair.get_symbol()
@@ -234,9 +260,12 @@ class Switcheo(object):
 
         return request.public_request(self.get_url(), "/v2/orders", params)
 
-
-
     def send_order(self, trade):
+        """
+        Send and order to the exchange and executes it
+        :param trade: executing trade
+        :return: order details
+        """
         want_amount = trade.get_want() / pow(10, 8)
         price = trade.get_price()
         try:

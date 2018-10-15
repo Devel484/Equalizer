@@ -9,26 +9,33 @@ from API.offerbook_collector import OfferbookCollector
 class Equalizer(object):
 
     def __init__(self, start_pair, middle_pair, end_pair, start_with=None):
-        self.outter_currency = start_pair.get_equal_token(end_pair)
+        """
+        Create Arbitrage markets
+        :param start_pair: start with pair
+        :param middle_pair: trade over pair
+        :param end_pair: end with pair
+        :param start_with: start with token
+        """
+        self.outer_currency = start_pair.get_equal_token(end_pair)
         self.inner_first_currency = start_pair.get_equal_token(middle_pair)
         self.inner_second_currency = middle_pair.get_equal_token(end_pair)
-        if self.outter_currency is None or \
+        if self.outer_currency is None or \
                 self.inner_first_currency is None or \
                 self.inner_second_currency is None or \
                 start_pair == middle_pair or \
                 middle_pair == end_pair or \
                 start_pair == end_pair or \
-                (start_with is not None and start_with != self.outter_currency) or \
-                self.outter_currency == self.inner_first_currency or \
+                (start_with is not None and start_with != self.outer_currency) or \
+                self.outer_currency == self.inner_first_currency or \
                 self.inner_first_currency == self.inner_second_currency or\
-                self.inner_second_currency == self.outter_currency:
+                self.inner_second_currency == self.outer_currency:
             raise ValueError("[Equalizer] %s %s %s not possible" % (start_pair.get_symbol(),
                                                                     middle_pair.get_symbol(),
                                                                     end_pair.get_symbol()))
-        self.ticker = "%s-%s-%s-%s" %(self.outter_currency.get_name(),
+        self.ticker = "%s-%s-%s-%s" %(self.outer_currency.get_name(),
                                       self.inner_first_currency.get_name(),
                                       self.inner_second_currency.get_name(),
-                                      self.outter_currency.get_name())
+                                      self.outer_currency.get_name())
 
         self.start_pair = start_pair
         self.middle_pair = middle_pair
@@ -38,22 +45,36 @@ class Equalizer(object):
         self.middle_market = middle_pair.get_orderbook()
         self.end_market = end_pair.get_orderbook()
 
-        self.total_win = 0
-        self.last = 0
         self.timestamp = 0
         self.spread = 0
         self.updating = False
 
     def get_start_token(self):
-        return self.outter_currency
+        """
+        :return: start token
+        """
+        return self.outer_currency
 
     def is_updating(self):
+        """
+        :return: true while loading order books
+        """
         return self.updating
 
     def set_updating(self, b):
+        """
+        Set updating
+        :param b: state
+        :return: None
+        """
         self.updating = b
 
     def update(self):
+        """
+        Update all markets and recalculate profits
+        :return: None
+        """
+
         if time.time() - self.timestamp > 10:
             self.set_updating(False)
         if self.is_updating():
@@ -87,26 +108,31 @@ class Equalizer(object):
         self.get_best_amount()
         self.set_updating(False)
 
-    def print_win(self, calc):
+    def win(self, calc):
+        """
+        Found win, print and execute
+        :param calc: information from 
+        :return:
+        """
         win = calc[0]
         amount = calc[1]
         percentage = win/amount * 100
         API.log.log_and_print("equalizer_win.txt", "%s use %16.8f %s to make %16.8f %s (%.3f%%) orderbook spread: %.3fs" %
-              (self.ticker, amount/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(),
-               win/pow(10, self.outter_currency.get_decimals()), self.outter_currency.get_name(), percentage,
+              (self.ticker, amount / pow(10, self.outer_currency.get_decimals()), self.outer_currency.get_name(),
+               win / pow(10, self.outer_currency.get_decimals()), self.outer_currency.get_name(), percentage,
                self.get_spread()))
 
         for trade in calc[3]:
             API.log.log_and_print("equalizer_win.txt", trade)
 
         self.execute(calc[3])
-        self.reset_block()
+        self.reset_blocked()
         return
 
     def calc(self, amount):
         try:
             all_trades = []
-            trades, amount = self.start_pair.get_orderbook().taker(amount, self.outter_currency)
+            trades, amount = self.start_pair.get_orderbook().taker(amount, self.outer_currency)
             all_trades.append(Trade.combine(trades))
             trades, amount = self.middle_pair.get_orderbook().taker(amount, self.inner_first_currency)
             all_trades.append(Trade.combine(trades))
@@ -129,9 +155,9 @@ class Equalizer(object):
                 start_market = self.start_pair.get_orderbook()
                 middle_market = self.middle_pair.get_orderbook()
                 end_market = self.end_pair.get_orderbook()
-                max_possible_start = start_market.get_sum_after_fees(i, start_market.get_maker_trade_way(self.outter_currency), self.inner_first_currency)
+                max_possible_start = start_market.get_sum_after_fees(i, start_market.get_maker_trade_way(self.outer_currency), self.inner_first_currency)
                 max_possible_middle = middle_market.get_sum(i, middle_market.get_maker_trade_way(self.inner_first_currency), self.inner_first_currency)
-                balance = self.outter_currency.get_balance()
+                balance = self.outer_currency.get_balance()
 
                 if not max_possible_start or not max_possible_middle:
                     break
@@ -161,7 +187,7 @@ class Equalizer(object):
                     if tmp < max_possible_start:
                         max_possible_start = tmp
 
-                start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outter_currency)
+                start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outer_currency)
                 if start_with == 0:
                     break
                 end_with, trades = self.calc(start_with)
@@ -170,15 +196,10 @@ class Equalizer(object):
 
                 percentage = win/start_with * 100
                 log_string = ":%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
-                                                                     win/pow(10, self.outter_currency.get_decimals()),
+                                                                     win/pow(10, self.outer_currency.get_decimals()),
                                                                      percentage, self.get_spread())
 
-                """API.log.log("equalizer_all.txt", "%s:%.8f (%.2f%%) time spread:%.3fs" %
-                            (self.get_symbol(),
-                             win/pow(10, self.outter_currency.get_decimals()),
-                             percentage, self.get_spread()))"""
                 for trade in trades:
-                    #API.log.log("equalizer_all.txt", "%s" % trade)
                     log_string = log_string + str(trade) + "\n"
                 API.log.log("equalizer_all.txt", log_string)
 
@@ -199,7 +220,7 @@ class Equalizer(object):
                     API.log.log("update.txt", "%s break" % self.get_symbol())
                     if percentage > -10:
                         log_string = "%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
-                                                                               win/pow(10, self.outter_currency.get_decimals()),
+                                                                               win/pow(10, self.outer_currency.get_decimals()),
                                                                                percentage, self.get_spread())
 
                         for trade in trades:
@@ -214,7 +235,7 @@ class Equalizer(object):
 
         if len(best_win) > 0:
             best_win = sorted(best_win, key=lambda entry: entry[0], reverse=True)
-            self.print_win(best_win[0])
+            self.win(best_win[0])
 
     def get_symbol(self):
         return self.ticker
@@ -275,7 +296,7 @@ class Equalizer(object):
                 API.log.log("execute.txt", "%s" % pair.get_orderbook())
                 return
 
-    def reset_block(self):
+    def reset_blocked(self):
         self.start_pair.set_blocked(False)
         self.middle_pair.set_blocked(False)
         self.end_pair.set_blocked(False)

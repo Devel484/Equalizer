@@ -129,7 +129,7 @@ class Pair(object):
         self.set_updating(True)
         if contract is None:
             contract = self.get_exchange().get_contract("NEO")
-        params = {"blockchain": contract.get_chain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
+        params = {"blockchain": contract.get_blockchain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
         raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
         self.offers = []
         for offer in raw_offers:
