@@ -1,12 +1,13 @@
+"""
+author: Devel484
+"""
 import API.api_request as request
-
 from API.contract import Contract
 from API.token import Token
 from API.pair import Pair
 from API.trade import Trade
 from API.candlestick import Candlestick
 import API.log
-
 from switcheo.authenticated_client import AuthenticatedClient
 from neocore.KeyPair import KeyPair
 from switcheo.neo.utils import neo_get_scripthash_from_private_key
@@ -26,6 +27,12 @@ class Switcheo(object):
     API_NET = None
 
     def __init__(self, api_net=MAIN_NET, fees=0.0015, private_key=None):
+        """
+        Create new Switcheo exchange with url, fee rate and private key
+        :param api_net:
+        :param fees:
+        :param private_key:
+        """
         self.url = Switcheo._API_URL[api_net]
         self.tokens = []
         self.pairs = []
@@ -37,6 +44,10 @@ class Switcheo(object):
             self.key_pair = KeyPair(bytes.fromhex(private_key))
 
     def initialise(self):
+        """
+        Initialise exchange by loading some data.
+        :return: None
+        """
         self.load_contracts()
         self.load_tokens()
         self.load_pairs()
@@ -46,6 +57,11 @@ class Switcheo(object):
 
     @staticmethod
     def get_minimum_amount(token):
+        """
+        Get minimum trading amount of token
+        :param token:
+        :return:
+        """
         if token.get_name() == "NEO":
             return 0.01 * pow(10, 8)
 
@@ -58,18 +74,34 @@ class Switcheo(object):
         return 1 * pow(10, 8)
 
     def get_key_pair(self):
+        """
+        :return: Neo Key Pair
+        """
         return self.key_pair
 
     def get_fees(self):
+        """
+        :return: fee rate
+        """
         return self.fees
 
     def get_url(self):
+        """
+        :return: basic URL
+        """
         return self.url
 
     def get_timestamp(self):
+        """
+        :return: timestamp in seconds
+        """
         return int(request.public_request(self.url, "/v2/exchange/timestamp")["timestamp"])/1000
 
     def load_contracts(self):
+        """
+        Load contracts and creates objects
+        :return: list of objects
+        """
         raw_contracts = request.public_request(self.url, "/v2/exchange/contracts")
         self.contracts = []
         for key in raw_contracts:
@@ -77,15 +109,27 @@ class Switcheo(object):
         return self.contracts
 
     def get_contracts(self):
+        """
+        :return: contracts
+        """
         return self.contracts
 
     def get_contract(self, blockchain="NEO"):
+        """
+        Get contract of blockchain
+        :param blockchain: blockchain name
+        :return: contract
+        """
         for contract in self.contracts:
-            if contract.get_chain() == blockchain:
+            if contract.get_blockchain() == blockchain:
                 return contract
         return None
 
     def load_tokens(self):
+        """
+        Load all tokens from exchange and create objects
+        :return: list of tokens
+        """
         raw_tokens = request.public_request(self.url, "/v2/exchange/tokens")
         self.tokens = []
         for key in raw_tokens:
@@ -93,15 +137,27 @@ class Switcheo(object):
         return self.tokens
 
     def get_tokens(self):
+        """
+        :return: tokens
+        """
         return self.tokens
 
     def get_token(self, name):
+        """
+        :param name: name of token
+        :return: token
+        """
         for token in self.tokens:
             if token.get_name() == name:
                 return token
         return None
 
     def load_pairs(self, bases=None):
+        """
+        Load all pairs from exchange(with bases)
+        :param bases: i.e. NEO, SWTH, ...
+        :return: List of objects
+        """
         params = None
         if bases:
             params = {"bases": bases}
