@@ -111,7 +111,7 @@ class Equalizer(object):
     def win(self, calc):
         """
         Found win, print and execute
-        :param calc: information from 
+        :param calc: information from
         :return:
         """
         win = calc[0]

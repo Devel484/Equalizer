@@ -165,7 +165,11 @@ class Switcheo(object):
         self.pairs = []
         for val in raw_pairs:
             quote, base = val.split("_")
-            self.pairs.append(Pair(self, self.get_token(quote), self.get_token(base)))
+            quote_token = self.get_token(quote)
+            base_token = self.get_token(base)
+            if not quote_token or not base_token:
+                continue
+            self.pairs.append(Pair(self, quote_token, base_token))
         return self.pairs
 
     def get_pairs(self):
@@ -294,15 +298,13 @@ class Switcheo(object):
         accept_want = int(want_amount * pow(10, 8)*0.98)
 
         API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
-        if accept_want <= fill_want:
 
-            order_details = self.client.execute_order(order_details, self.key_pair)
-            #API.log.log_and_print("execute_order.txt", order_details)
-            while True:
-                self.load_balances()
-                if target_currency.get_balance() >= fill_want - fee_amount:
-                    break
-            return order_details
+        order_details = self.client.execute_order(order_details, self.key_pair)
+        while True:
+            self.load_balances()
+            if target_currency.get_balance() >= fill_want - fee_amount:
+                break
+        return order_details
 
 
 
