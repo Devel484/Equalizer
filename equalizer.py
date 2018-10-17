@@ -3,7 +3,7 @@ import API.log
 import time
 from API.trade import Trade
 from API.switcheo import Switcheo
-from API.offerbook_collector import OfferbookCollector
+from API.equalizer_updater import EqualizerUpdater
 
 
 class Equalizer(object):
@@ -278,9 +278,9 @@ if __name__ == "__main__":
     contract = switcheo.get_contract("NEO")
     equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"))
 
-    offerbook_collector = OfferbookCollector(equalizers)
+    equalizer_updater = EqualizerUpdater(equalizers)
 
-    offerbook_collector.start()
+    equalizer_updater.start()
     print("Start loading")
     while True:
         try:

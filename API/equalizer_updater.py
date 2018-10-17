@@ -9,7 +9,7 @@ import threading
 import time
 
 
-class OfferbookCollector():
+class EqualizerUpdater(object):
 
     '''
         Creates an new OrderBookCollector with the given trading pairs.
@@ -85,7 +85,6 @@ class OfferbookCollector():
                 print(e)
                 pair.set_updating(False)
                 pair.reset_blocked()
-
 
             self.counter = self.counter + 1
 
