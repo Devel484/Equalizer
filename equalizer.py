@@ -254,53 +254,17 @@ class Equalizer(object):
         return equalizers
 
     def execute(self, trades):
+        API.log.log("execute.txt", self.get_symbol())
         for trade in trades:
-
-            pair = trade.get_pair()
-            exchange = pair.get_exchange()
-            origin_currency = pair.get_quote_token()
-            target_currency = pair.get_base_token()
-            way = trade.get_way()
-            if way == Trade.WAY_BUY:
-                origin_currency = pair.get_base_token()
-                target_currency = pair.get_quote_token()
-
-            if origin_currency.get_balance() < exchange.get_minimum_amount(origin_currency):
-                return
-
-            want_amount = trade.get_want()
-            offer_amount = trade.get_offer()
-
-            if offer_amount > origin_currency.get_balance():
-                want_amount = int(origin_currency.get_balance()/offer_amount * want_amount)
-                offer_amount = origin_currency.get_balance()
-                if way == Trade.WAY_SELL:
-                    trade = Trade(trade.get_pair(), trade.get_way(), trade.get_price(), want_amount,
-                                  offer_amount, trade.get_timestamp())
-                else:
-                    trade = Trade(trade.get_pair(), trade.get_way(), trade.get_price(), offer_amount,
-                                  want_amount, trade.get_timestamp())
-
             API.log.log("execute.txt", "%s" % trade)
-
-            try:
-                order_details = exchange.send_order(trade)
-                #API.log.log_and_print("execute_order.txt", str(order_details))
-                if not order_details:
-                    return
-                #target_currency.add_balance(want_amount)
-                #origin_currency.add_balance(-offer_amount)
-
-            except Exception as e:
-                API.log.log("execute.txt", "%s" % e)
-                API.log.log("execute.txt", "%s" % pair.get_orderbook())
+            order_details = trade.send_order()
+            if not order_details:
                 return
 
     def reset_blocked(self):
         self.start_pair.set_blocked(False)
         self.middle_pair.set_blocked(False)
         self.end_pair.set_blocked(False)
-
 
 
 if __name__ == "__main__":
@@ -313,10 +277,6 @@ if __name__ == "__main__":
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
     equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"))
-
-
-    #trade = Trade(switcheo.get_pair("MCT_NEO"), Trade.WAY_BUY, 0.00014000, 10000000, 60000000, None)
-    #switcheo.send_order(trade)
 
     offerbook_collector = OfferbookCollector(equalizers)
 

@@ -217,8 +217,9 @@ class Trade(object):
             return Trade.get_buy_string()
         return Trade.get_sell_string()
 
-    def create_order(self):
+    def send_order(self):
         exchange = self.pair.get_exchange()
+        exchange.send_order(self)
 
     @staticmethod
     def get_buy_string():
