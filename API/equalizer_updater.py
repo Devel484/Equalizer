@@ -84,7 +84,7 @@ class OfferbookCollector():
                 print("Exchange exception, continue and try next time")
                 print(e)
                 pair.set_updating(False)
-                pair.reset_block()
+                pair.reset_blocked()
 
 
             self.counter = self.counter + 1
