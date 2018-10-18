@@ -5,6 +5,7 @@ from API.switcheo import Switcheo
 from API.equalizer_updater import EqualizerUpdater
 from API.private_key import PRIVATE_KEY
 
+
 class Equalizer(object):
 
     def __init__(self, start_pair, middle_pair, end_pair, start_with=None):

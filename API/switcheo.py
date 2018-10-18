@@ -45,6 +45,7 @@ class Switcheo(object):
                 self.key_pair = KeyPair(bytes.fromhex(private_key))
             except:
                 self.key_pair = None
+                print("No or incorrect private key. Equalizer changes to view only mode")
 
     def initialise(self):
         """
