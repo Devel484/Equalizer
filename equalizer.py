@@ -1,10 +1,9 @@
-
 import API.log
 import time
 from API.trade import Trade
 from API.switcheo import Switcheo
 from API.equalizer_updater import EqualizerUpdater
-
+from API.private_key import PRIVATE_KEY
 
 class Equalizer(object):
 
@@ -48,6 +47,15 @@ class Equalizer(object):
         self.timestamp = 0
         self.spread = 0
         self.updating = False
+        self.view_only = True
+
+    def toggle_view_only(self, b):
+        """
+        Toggle view only. If set it only prints and do not check and execute.
+        :param b: bool
+        :return: None
+        """
+        self.view_only = b
 
     def get_start_token(self):
         """
@@ -125,7 +133,8 @@ class Equalizer(object):
         for trade in calc[3]:
             API.log.log_and_print("equalizer_win.txt", trade)
 
-        self.execute(calc[3])
+        if not self.view_only:
+            self.execute(calc[3])
         self.reset_blocked()
         return
 
@@ -165,9 +174,6 @@ class Equalizer(object):
                 if max_possible_start > max_possible_middle:
                     max_possible_start = max_possible_middle
 
-                if max_possible_start > balance:
-                    max_possible_start = balance
-
                 if self.start_pair.get_exchange().get_minimum_amount(self.inner_first_currency) > max_possible_start:
                     i = i + 1
                     continue
@@ -188,6 +194,8 @@ class Equalizer(object):
                         max_possible_start = tmp
 
                 start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outer_currency)
+                if not self.view_only and start_with > balance:
+                    start_with = balance
                 if start_with == 0:
                     break
                 end_with, trades = self.calc(start_with)
@@ -241,13 +249,14 @@ class Equalizer(object):
         return self.ticker
 
     @staticmethod
-    def get_all_equalizer(pairs, start_with=None):
+    def get_all_equalizer(pairs, start_with=None, view_only=True):
         equalizers = []
         for start_pair in pairs:
             for middle_pair in pairs:
                 for end_pairs in pairs:
                     try:
                         eq = Equalizer(start_pair, middle_pair, end_pairs, start_with)
+                        eq.toggle_view_only(view_only)
                         equalizers.append(eq)
                     except ValueError:
                         continue
@@ -273,10 +282,11 @@ if __name__ == "__main__":
     print("If instant profit is found it will printed to the console, keep waiting")
     print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even losses.")
     print("Only trades with profit will be printed.")
-    switcheo = Switcheo(private_key="319616b9d276944502cebf6858ec66ba79624bb50f57a4d150e72a9636115edf")
+    switcheo = Switcheo(private_key=PRIVATE_KEY)
     switcheo.initialise()
     contract = switcheo.get_contract("NEO")
-    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"))
+    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"), switcheo.get_key_pair() is None)
+    equalizers = equalizers + Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("SWTH"), switcheo.get_key_pair() is None)
 
     equalizer_updater = EqualizerUpdater(equalizers)
 

@@ -41,7 +41,10 @@ class Switcheo(object):
         self.key_pair = None
         self.client = AuthenticatedClient(api_url=self.url)
         if private_key:
-            self.key_pair = KeyPair(bytes.fromhex(private_key))
+            try:
+                self.key_pair = KeyPair(bytes.fromhex(private_key))
+            except:
+                self.key_pair = None
 
     def initialise(self):
         """
@@ -233,6 +236,8 @@ class Switcheo(object):
         Load all balances from the exchange and updates them in the tokens
         :return: balances
         """
+        if self.get_key_pair() is None:
+            return []
         params = {
             "addresses": neo_get_scripthash_from_private_key(self.key_pair.PrivateKey),
             "contract_hashes": self.get_contract("NEO").get_latest_hash()
@@ -270,6 +275,9 @@ class Switcheo(object):
         :param trade: executing trade
         :return: order details
         """
+        if not self.get_key_pair():
+            return None
+
         want_amount = trade.get_want() / pow(10, 8)
         price = trade.get_price()
         try:
@@ -294,8 +302,6 @@ class Switcheo(object):
         way = trade.get_way()
         if way == Trade.WAY_BUY:
             target_currency = trade.get_pair().get_quote_token()
-
-        accept_want = int(want_amount * pow(10, 8)*0.98)
 
         API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
 

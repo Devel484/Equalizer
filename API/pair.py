@@ -142,8 +142,8 @@ class Pair(object):
                 quote_amount = offer["offer_amount"]
                 base_amount = offer["want_amount"]
 
-            if self.get_quote_token().get_decimals() == 0:
-                quote_amount = quote_amount * pow(10, 8)
+            #if self.get_quote_token().get_decimals() == 0:
+            #    quote_amount = quote_amount * pow(10, 8)
 
             price = base_amount / quote_amount
 
