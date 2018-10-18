@@ -6,3 +6,4 @@ SwitcheoPyAPI.iml
 /__pycache__/
 /API/__pycache__/
 *.pyc
+/API/private_key.py
