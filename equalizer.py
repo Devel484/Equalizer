@@ -1,9 +1,6 @@
 import API.log
 import time
 from API.trade import Trade
-from API.switcheo import Switcheo
-from API.equalizer_updater import EqualizerUpdater
-from API.private_key import PRIVATE_KEY
 
 
 class Equalizer(object):
