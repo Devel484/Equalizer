@@ -15,7 +15,7 @@ This is why neither I nor the Switcheo team are responsible for the correctness 
 # Use
 
 Download the directory and unzip it. Use Python 3 to start the program:<br>
-Open the file equalizer.py and enter your private key at the end of the file.<br>
+Open the file equalizer.py and enter your private key at the end of the file.You need funds for running the bot.<br>
 Use:
 `python equalizer.py`<br>
 or:<br>
