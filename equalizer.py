@@ -275,29 +275,3 @@ class Equalizer(object):
         self.start_pair.set_blocked(False)
         self.middle_pair.set_blocked(False)
         self.end_pair.set_blocked(False)
-
-
-if __name__ == "__main__":
-
-    print("Equalizer searches for instant profits with the perfect amount.")
-    print("If instant profit is found it will printed to the console, keep waiting")
-    print("Use 'tail -f logs/mainnet/equalizer_all.txt' (only linux) to see all results even losses.")
-    print("Only trades with profit will be printed.")
-    switcheo = Switcheo(private_key=PRIVATE_KEY)
-    switcheo.initialise()
-    contract = switcheo.get_contract("NEO")
-    equalizers = Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("NEO"), switcheo.get_key_pair() is None)
-    equalizers = equalizers + Equalizer.get_all_equalizer(switcheo.get_pairs(), switcheo.get_token("SWTH"), switcheo.get_key_pair() is None)
-
-    equalizer_updater = EqualizerUpdater(equalizers)
-
-    equalizer_updater.start()
-    print("Start loading")
-    while True:
-        try:
-            time.sleep(10)
-            switcheo.load_last_prices()
-            switcheo.load_24_hours()
-            switcheo.load_balances()
-        except Exception as e:
-            print(e)
