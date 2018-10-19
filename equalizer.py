@@ -193,6 +193,8 @@ class Equalizer(object):
 
                 start_with = self.start_pair.get_orderbook().reverse_taker(max_possible_start, self.outer_currency)
                 if not self.view_only and start_with > balance:
+                    if balance < self.start_pair.get_exchange().get_minimum_amount(self.outer_currency):
+                        return
                     start_with = balance
                 if start_with == 0:
                     break
