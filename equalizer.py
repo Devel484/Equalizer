@@ -87,16 +87,9 @@ class Equalizer(object):
             return
         API.log.log("update.txt", "%s:%s" % (self.get_symbol(), self.is_updating()))
         self.set_updating(True)
-        self.start_pair.load_offers()
-        self.middle_pair.load_offers()
-        self.end_pair.load_offers()
-        if not self.start_pair.is_updated():
-            return self.set_updating(False)
-
-        if not self.middle_pair.is_updated():
-            return self.set_updating(False)
-
-        if not self.end_pair.is_updated():
+        if not self.start_pair.load_offers() or\
+           not self.middle_pair.load_offers() or\
+           not self.end_pair.load_offers():
             return self.set_updating(False)
 
         times = (self.start_pair.get_orderbook().get_timestamp(), self.middle_pair.get_orderbook().get_timestamp(),

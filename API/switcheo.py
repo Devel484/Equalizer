@@ -107,6 +107,8 @@ class Switcheo(object):
         :return: list of objects
         """
         raw_contracts = request.public_request(self.url, "/v2/exchange/contracts")
+        if not raw_contracts:
+            return
         self.contracts = []
         for key in raw_contracts:
             self.contracts.append(Contract(key, raw_contracts[key]))
@@ -135,6 +137,8 @@ class Switcheo(object):
         :return: list of tokens
         """
         raw_tokens = request.public_request(self.url, "/v2/exchange/tokens")
+        if not raw_tokens:
+            return
         self.tokens = []
         for key in raw_tokens:
             self.tokens.append(Token(key, raw_tokens[key]["decimals"], raw_tokens[key]["hash"]))
@@ -166,6 +170,8 @@ class Switcheo(object):
         if bases:
             params = {"bases": bases}
         raw_pairs = request.public_request(self.url, "/v2/exchange/pairs", params)
+        if not raw_pairs:
+            return
         self.pairs = []
         for val in raw_pairs:
             quote, base = val.split("_")
@@ -199,6 +205,8 @@ class Switcheo(object):
         :return: list of objects
         """
         raw_candles = request.public_request(self.get_url(), "/v2/tickers/last_24_hours")
+        if not raw_candles:
+            return
         candlesticks = []
         timestamp = self.get_timestamp() - 1*60*60*24
         for token in self.tokens:
@@ -223,6 +231,8 @@ class Switcheo(object):
         :return: list of prices
         """
         prices = request.public_request(self.get_url(), "/v2/tickers/last_price")
+        if not prices:
+            return
         for quote in prices:
             for base in prices[quote]:
                 pair = self.get_pair(quote+"_"+base)
@@ -245,6 +255,8 @@ class Switcheo(object):
         }
 
         raw_balances = request.public_request(self.get_url(), "/v2/balances", params)
+        if not raw_balances:
+            return
         for token in self.tokens:
             token.set_balance(0)
 
@@ -268,7 +280,10 @@ class Switcheo(object):
             "pair": pair_name
         }
 
-        return request.public_request(self.get_url(), "/v2/orders", params)
+        orders = request.public_request(self.get_url(), "/v2/orders", params)
+        if not orders:
+            return
+        return orders
 
     def send_order(self, trade):
         """
@@ -279,19 +294,24 @@ class Switcheo(object):
         if not self.get_key_pair():
             return None
 
-        want_amount = trade.get_want() / pow(10, 8)
         price = trade.get_price()
-        try:
-            order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
-                                                     trade.get_trade_way_as_string().lower(), price, want_amount, False)
 
-        except HTTPError as e:
-            API.log.log_and_print("API_response:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
-                                                                     e.response.text))
-            want_amount = int(trade.get_want() / pow(10, 2)) / pow(10, 6)
-            API.log.log_and_print("execute.txt", "Changed amount: %.8f pair: %s" % (want_amount, trade.get_pair().get_symbol()))
+        """
+        Try to get amount, if not possible reduce precision
+        """
+        order_details = None
+        want_amount = 0
+        for i in range(3):
+            want_amount = int(trade.get_want() / pow(10, i)) / pow(10, 8-i)
+            API.log.log_and_print("execute.txt", "Want amount: %.8f pair: %s" % (want_amount, trade.get_pair().get_symbol()))
             order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
                                                      trade.get_trade_way_as_string().lower(), price, want_amount, False)
+            if order_details:
+                break
+
+        if not order_details:
+            API.log.log_and_print("execute.txt", "Not possible to get valid order details for pair: %s" % trade.get_pair().get_symbol())
+            return
 
         fill_want = 0
         fee_amount = 0
@@ -307,6 +327,9 @@ class Switcheo(object):
         API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
 
         order_details = self.client.execute_order(order_details, self.key_pair)
+        if not order_details:
+            API.log.log_and_print("execute.txt", "Not possible to get valid executing order details for pair: %s" % trade.get_pair().get_symbol())
+            return
         while True:
             self.load_balances()
             if target_currency.get_balance() >= fill_want - fee_amount:

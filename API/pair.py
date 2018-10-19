@@ -131,6 +131,8 @@ class Pair(object):
             contract = self.get_exchange().get_contract("NEO")
         params = {"blockchain": contract.get_blockchain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
         raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
+        if not raw_offers:
+            return
         self.offers = []
         for offer in raw_offers:
             way = Trade.WAY_BUY

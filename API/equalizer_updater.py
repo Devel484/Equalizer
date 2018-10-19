@@ -75,16 +75,7 @@ class EqualizerUpdater(object):
 
             pair = self.request[self.counter-1]
 
-
-
-            try:
-                pair.update()
-
-            except Exception as e:
-                print("Exchange exception, continue and try next time")
-                print(e)
-                pair.set_updating(False)
-                pair.reset_blocked()
+            pair.update()
 
             self.counter = self.counter + 1
 
