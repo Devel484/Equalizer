@@ -12,6 +12,8 @@ from switcheo.authenticated_client import AuthenticatedClient
 from neocore.KeyPair import KeyPair
 from switcheo.neo.utils import neo_get_scripthash_from_private_key
 from requests.exceptions import HTTPError
+import time
+import datetime
 
 
 class Switcheo(object):
@@ -26,7 +28,7 @@ class Switcheo(object):
 
     API_NET = None
 
-    def __init__(self, api_net=MAIN_NET, fees=0.0015, private_key=None):
+    def __init__(self, api_net=MAIN_NET, fees=0.0015, private_key=None, fee_token_name=None, discount=0.5):
         """
         Create new Switcheo exchange with url, fee rate and private key
         :param api_net:
@@ -38,7 +40,10 @@ class Switcheo(object):
         self.pairs = []
         self.contracts = []
         self.fees = fees
+        self.fee_token_name = fee_token_name
+        self.fee_token = None
         self.key_pair = None
+        self.discount = discount
         self.client = AuthenticatedClient(api_url=self.url)
         if private_key:
             try:
@@ -58,6 +63,8 @@ class Switcheo(object):
         self.load_last_prices()
         self.load_24_hours()
         self.load_balances()
+        if self.fee_token_name:
+            self.fee_token = self.get_token(self.fee_token_name)
 
     @staticmethod
     def get_minimum_amount(token):
@@ -150,13 +157,13 @@ class Switcheo(object):
         """
         return self.tokens
 
-    def get_token(self, name):
+    def get_token(self, name_or_hash):
         """
-        :param name: name of token
+        :param name_or_hash: name or hash of token
         :return: token
         """
         for token in self.tokens:
-            if token.get_name() == name:
+            if token.get_name() == name_or_hash or token.get_hash() == name_or_hash:
                 return token
         return None
 
@@ -198,6 +205,19 @@ class Switcheo(object):
             if pair.get_symbol() == symbol:
                 return pair
         return None
+
+    def get_pair_by_tokens(self, token1, token2):
+        """
+        Try to find pair with token1_token2 or token2_token1
+        :param token1: token
+        :param token2: token
+        :return: pair
+        """
+        pair = self.get_pair(token1.get_name()+"_"+token2.get_name())
+        if pair:
+            return pair
+        pair = self.get_pair(token2.get_name()+"_"+token1.get_name())
+        return pair
 
     def load_24_hours(self):
         """
@@ -283,7 +303,96 @@ class Switcheo(object):
         orders = request.public_request(self.get_url(), "/v2/orders", params)
         if not orders:
             return
-        return orders
+        trades = []
+        for order_details in orders:
+            trades = trades + self.order_to_trades(order_details)
+        return trades
+
+    def time_to_timestamp(self, timestring):
+        timestring, milliseconds = timestring.split(".")
+        timestamp = time.mktime(datetime.datetime.strptime(timestring, "%Y-%m-%dT%H:%M:%S").timetuple())
+        milliseconds = milliseconds[:len(milliseconds)-1]
+        milliseconds = int(milliseconds)/pow(10, len(milliseconds))
+        timestamp = timestamp + milliseconds
+        return timestamp
+
+    def order_to_trades(self, order_details):
+        trades = []
+        way = Trade.get_trade_way(order_details["side"])
+        use_native_token = order_details["use_native_token"]
+
+        want_token = self.get_token(order_details["want_asset_id"])
+        offer_token = self.get_token(order_details["offer_asset_id"])
+        pair = self.get_pair_by_tokens(want_token, offer_token)
+
+        fee_currency = want_token
+        if use_native_token:
+            fee_currency = self.get_fee_token()
+
+        state = None
+        if order_details["status"] == "pending":
+            state = Trade.STATE_PENDING
+        elif order_details["status"] == "expired":
+            state = Trade.STATE_CANCELED
+        elif order_details["status"] == "processed":
+            if order_details["order_status"] == "open":
+                state = Trade.STATE_ACTIVE
+            elif order_details["order_status"] == "completed":
+                state = Trade.STATE_FILLED
+            else:
+                state = Trade.STATE_CANCELED
+        for fills in order_details["fills"]:
+
+            timestamp = self.time_to_timestamp(fills["created_at"])
+            fee_amount = 0
+            if use_native_token:
+                fee_amount = int(fills["fee_amount"])
+            price = float(fills["price"])
+            if not pair:
+                raise ValueError("Not able to find pair with tokens:"+want_token+" and "+offer_token)
+            quote_amount = int(fills["want_amount"])
+            base_amount = quote_amount * price
+            if way == Trade.WAY_SELL:
+                base_amount = int(fills["want_amount"])
+                quote_amount = int(base_amount / price)
+
+            trades.append(Trade(pair, way, price, base_amount, quote_amount, timestamp, Trade.TRADE_TYPE_TAKER, state, fills["id"], 1, fee_currency, fee_amount))
+
+        for makes in order_details["makes"]:
+            timestamp = self.time_to_timestamp(makes["created_at"])
+            price = float(makes["price"])
+            if not pair:
+                raise ValueError("Not able to find pair with tokens:"+want_token+" and "+offer_token)
+            quote_amount = int(makes["want_amount"])
+            base_amount = quote_amount * price
+            if way == Trade.WAY_SELL:
+                base_amount = int(makes["want_amount"])
+                quote_amount = int(base_amount / price)
+
+            filled = (float(makes["offer_amount"]) - float(makes["available_amount"])) / float(makes["offer_amount"])
+
+            if state != Trade.STATE_CANCELED:
+                if filled == 1:
+                    state = Trade.STATE_FILLED
+                elif filled == 0:
+                    state = Trade.STATE_ACTIVE
+                else:
+                    state = Trade.STATE_PART_FILLED
+                filled = (float(makes["offer_amount"]) - float(makes["available_amount"])) / float(makes["offer_amount"])
+            else:
+                filled = (float(makes["filled_amount"]) / float(makes["offer_amount"]))
+            """
+            if makes["status"] == "cancelled" or makes["status"] == "expired":
+                state = Trade.STATE_CANCELED"""
+
+            fee_amount = 0
+            if use_native_token:
+                for t in makes["trades"]:
+                    fee_amount += int(t["fee_amount"])
+
+            trades.append(Trade(pair, way, price, base_amount, quote_amount, timestamp, Trade.TRADE_TYPE_MAKER, state, makes["id"], filled, fee_currency, fee_amount))
+
+        return trades
 
     def send_order(self, trade):
         """
@@ -300,41 +409,90 @@ class Switcheo(object):
         Try to get amount, if not possible reduce precision
         """
         order_details = None
-        want_amount = 0
+        details = None
+        trades = None
         for i in range(3):
-            want_amount = int(trade.get_want() / pow(10, i)) / pow(10, 8-i)
-            API.log.log_and_print("execute.txt", "Want amount: %.8f pair: %s" % (want_amount, trade.get_pair().get_symbol()))
-            order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
-                                                     trade.get_trade_way_as_string().lower(), price, want_amount, False)
-            if order_details:
-                break
+            try:
+                want_amount = (trade.get_want() * pow(0.999, i))/pow(10, 8)
+
+                order_details = self.client.create_order(self.key_pair, trade.get_pair().get_symbol(),
+                                                         trade.get_trade_way_as_string().lower(), price, want_amount, True)
+                if order_details:
+                    trades = self.order_to_trades(order_details)
+                    API.log.log_and_print("send_order.txt", "Virtual order:")
+                    API.log.log_and_print("send_order.txt", trade)
+                    API.log.log_and_print("send_order.txt", "Create order:")
+                    for t in trades:
+                        API.log.log_and_print("send_order.txt", t)
+
+                    details = self.client.execute_order(order_details, self.key_pair)
+                    trades = self.order_to_trades(details)
+                    API.log.log_and_print("send_order.txt", "Execute order(s)")
+                    for t in trades:
+                        API.log.log_and_print("send_order.txt", t)
+                    break
+
+            except HTTPError as e:
+                API.log.log_and_print("send_order.txt:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
+                                                                 e.response.text))
+                time.sleep(0.1)
+                continue
 
         if not order_details:
             API.log.log_and_print("execute.txt", "Not possible to get valid order details for pair: %s" % trade.get_pair().get_symbol())
             return
 
-        fill_want = 0
-        fee_amount = 0
-        for fills in order_details["fills"]:
-            fill_want = int(fill_want + float(fills["want_amount"]))
-            fee_amount = int(fee_amount + float(fills["fee_amount"]))
-
-        target_currency = trade.get_pair().get_base_token()
-        way = trade.get_way()
-        if way == Trade.WAY_BUY:
-            target_currency = trade.get_pair().get_quote_token()
-
-        API.log.log_and_print("execute_order.txt", "%s von %s (%.3f)" % (fill_want, want_amount * pow(10, 8), fill_want/(want_amount * pow(10, 8))*100))
-
-        order_details = self.client.execute_order(order_details, self.key_pair)
-        if not order_details:
+        if not details:
             API.log.log_and_print("execute.txt", "Not possible to get valid executing order details for pair: %s" % trade.get_pair().get_symbol())
-            return
-        while True:
-            self.load_balances()
-            if target_currency.get_balance() >= fill_want - fee_amount:
-                break
-        return order_details
+
+        return trades
+
+    def get_fee_token(self):
+        """
+        Get the native fee token
+        :return: fee token
+        """
+        return self.fee_token
+
+    def calculate_fees(self, trade):
+        """
+        Calculates fees
+        I.e.
+        BUY NEO_SWTH pay fees in SWTH * discount
+        SELL NEO_SWTH pay fees in SWTH -> fees in NEO -> lastprice NEO_SWTH -> SWTH * discount
+        BUY APH_NEO pay fees SWTH -> fees in APH -> last price NEO_APH -> last price NEO_SWTH -> SWTH * discount
+        SELL SWTH_GAS -> fees GAS -> GAS_NEO
+        :param trade: trade
+        :return: None
+        """
+        non_native_fee_token = trade.get_pair().get_quote_token()
+        non_native_fee_amount = trade.get_amount_quote() * self.get_fees()
+        if trade.get_way() == Trade.WAY_SELL:
+            non_native_fee_token = trade.get_pair().get_base_token()
+            non_native_fee_amount = trade.get_amount_base() * self.get_fees()
+
+        if trade.get_fee_token() == self.get_fee_token():
+            neo_token = self.get_token("NEO")
+            neo_to_non_native = self.get_pair_by_tokens(non_native_fee_token, neo_token)
+            neo_to_fee_token = self.get_pair_by_tokens(neo_token, self.get_fee_token())
+            if non_native_fee_token != self.get_fee_token():
+                if neo_to_non_native:
+                    non_native_fee_amount = non_native_fee_amount * neo_to_non_native.get_last_price()
+                if neo_to_non_native != neo_to_fee_token:
+                    non_native_fee_amount = non_native_fee_amount / neo_to_fee_token.get_last_price()
+
+            """non_native_to_fee_token = self.get_pair_by_tokens(non_native_fee_token, self.get_fee_token())
+            if non_native_to_fee_token:
+                non_native_fee_amount = non_native_fee_amount / non_native_to_fee_token.get_last_price()"""
+
+            native_fee_amount = int(non_native_fee_amount * self.discount)
+            trade.set_fees(native_fee_amount)
+
+        else:
+            trade.set_fees(int(non_native_fee_amount))
+
+
+
 
 
 

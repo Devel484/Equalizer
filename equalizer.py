@@ -80,9 +80,6 @@ class Equalizer(object):
         Update all markets and recalculate profits
         :return: None
         """
-
-        if time.time() - self.timestamp > 10:
-            self.set_updating(False)
         if self.is_updating():
             return
         API.log.log("update.txt", "%s:%s" % (self.get_symbol(), self.is_updating()))
@@ -134,11 +131,11 @@ class Equalizer(object):
             all_trades = []
             trades, amount = self.start_pair.get_orderbook().taker(amount, self.outer_currency)
             all_trades.append(Trade.combine(trades))
-            trades, amount = self.middle_pair.get_orderbook().taker(amount, self.inner_first_currency)
+            trades, amount = self.middle_pair.get_orderbook().taker(all_trades[0].get_want(), self.inner_first_currency)
             all_trades.append(Trade.combine(trades))
-            trades, amount = self.end_pair.get_orderbook().taker(amount, self.inner_second_currency)
+            trades, amount = self.end_pair.get_orderbook().taker(all_trades[1].get_want(), self.inner_second_currency)
             all_trades.append(Trade.combine(trades))
-            return amount, all_trades
+            return all_trades[2].get_want(), all_trades
         except KeyError:
             return 0, []
 
@@ -210,7 +207,6 @@ class Equalizer(object):
                         exchange = pair.get_exchange()
                         if pair.is_blocked():
                             return
-                        pair.set_blocked(True)
                         if exchange.get_minimum_amount(pair.get_base_token()) > trade.get_amount_base():
                             return
                         if exchange.get_minimum_amount(pair.get_quote_token()) > trade.get_amount_quote():
@@ -232,6 +228,7 @@ class Equalizer(object):
                 i = i + 1
             except Exception as e:
                 print(e)
+                continue
                 break
 
         if len(best_win) > 0:
@@ -258,6 +255,7 @@ class Equalizer(object):
     def execute(self, trades):
         API.log.log("execute.txt", self.get_symbol())
         for trade in trades:
+            trade.get_pair().set_blocked(True)
             API.log.log("execute.txt", "%s" % trade)
             order_details = trade.send_order()
             if not order_details:

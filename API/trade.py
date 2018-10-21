@@ -1,8 +1,8 @@
 
 
 class Trade(object):
-    TRADE_TYPE_MARKET = 0
-    TRADE_TYPE_LIMIT = 1
+    TRADE_TYPE_TAKER = 0
+    TRADE_TYPE_MAKER = 1
 
     STATE_VIRTUAL = 0
     STATE_PENDING = 1
@@ -14,7 +14,7 @@ class Trade(object):
     WAY_BUY = 0
     WAY_SELL = 1
 
-    def __init__(self, pair, way, price, amount_base, amount_quote, timestamp, type=TRADE_TYPE_LIMIT, state=STATE_VIRTUAL):
+    def __init__(self, pair, way, price, amount_base, amount_quote, timestamp, type=TRADE_TYPE_TAKER, state=STATE_VIRTUAL, id=None, filled=1, fee_currency=None, fees=None):
         """
         Create a Trade
         :param pair: pair reference
@@ -32,22 +32,50 @@ class Trade(object):
         self.price = price
         self.amount_base = amount_base
         self.amount_quote = amount_quote
-        self.filled = 0
+        self.filled = filled
 
         self.timestamp = timestamp
         self.state = state
         self.total = 0
 
+        self.id = id
+
         if way == Trade.WAY_BUY:
             self.total = self.amount_quote
-            self.fee_currency = self.pair.get_quote_token()
-            self.fees = int(self.amount_quote * pair.get_exchange().get_fees())
-            self.amount_quote = self.amount_quote - self.fees
+            if fee_currency:
+                self.fee_currency = fee_currency
+                self.fees = fees
+            else:
+                self.fee_currency = self.pair.get_quote_token()
+                self.pair.get_exchange().calculate_fees(self)
+                self.amount_quote = self.amount_quote - self.fees
         else:
             self.total = self.amount_base
-            self.fee_currency = self.pair.get_base_token()
-            self.fees = int(self.amount_base * pair.get_exchange().get_fees())
-            self.amount_base = self.amount_base - self.fees
+            if fee_currency:
+                self.fee_currency = fee_currency
+                self.fees = fees
+            else:
+                self.fee_currency = self.pair.get_base_token()
+                self.pair.get_exchange().calculate_fees(self)
+                self.amount_base = self.amount_base - self.fees
+
+        if self.fees is None:
+            self.pair.get_exchange().calculate_fees(self)
+
+    def get_id(self):
+        """
+        Get identification
+        :return: id
+        """
+        return self.id
+
+    def set_id(self, id):
+        """
+        Set identification
+        :param id: id
+        :return: None
+        """
+        self.id = id
 
     def get_total(self):
         """
@@ -69,9 +97,13 @@ class Trade(object):
         :return: want amount
         """
         if self.way == Trade.WAY_BUY:
-            return self.amount_quote + self.fees
+            if self.pair.get_quote_token() == self.fee_currency and self.pair.get_quote_token().get_name() != "SWTH":
+                return self.amount_quote + self.fees
+            return self.amount_quote
         else:
-            return self.amount_base + self.fees
+            if self.pair.get_base_token() == self.fee_currency and self.pair.get_quote_token().get_name() != "SWTH":
+                return self.amount_base + self.fees
+            return self.amount_base
 
     def get_pair(self):
         """
@@ -120,6 +152,21 @@ class Trade(object):
         :return: amount quote as float
         """
         return self.amount_quote / pow(10, self.pair.get_quote_token().get_decimals())
+
+    def get_filled(self):
+        """
+        Get filled in percentage
+        :return: %
+        """
+        return self.filled
+
+    def set_filled(self, filled):
+        """
+        Set filled(%)
+        :param filled: filled in percentage
+        :return: None
+        """
+        self.filled = filled
 
     def is_filled(self):
         """
@@ -170,6 +217,21 @@ class Trade(object):
         """
         return self.timestamp
 
+    def get_fee_token(self):
+        """
+        Get the token in which the fees are paid
+        :return: Token
+        """
+        return self.fee_currency
+
+    def set_fees(self, fees):
+        """
+        Set the fees
+        :param fees: fees
+        :return: None
+        """
+        self.fees = fees
+
     def get_fees(self):
         """
         :return: fee amount
@@ -182,25 +244,77 @@ class Trade(object):
         """
         return self.fees / pow(10, self.fee_currency.get_decimals())
 
-    def is_market(self):
+    def is_maker(self):
         """
-        :return: true if market trade
+        :return: true if maker trade
         """
-        return self.type == Trade.TRADE_TYPE_MARKET
+        return self.type == Trade.TRADE_TYPE_MAKER
 
-    def is_limit(self):
+    def is_taker(self):
         """
         :return: true if taker trade
         """
-        return self.type == Trade.TRADE_TYPE_LIMIT
+        return self.type == Trade.TRADE_TYPE_TAKER
+
+    def get_state_as_string(self):
+        """
+        Get state as string
+        (V)irtual
+        (P)ending
+        (A)ctive
+        (F)illed
+        (f)illed part.
+        (X)Canceled
+        (?)Unknown
+        :return: state as string
+        """
+        if self.is_virtual():
+            return "V"
+        if self.is_pending():
+            return "P"
+
+        if self.is_active():
+            return "A"
+
+        if self.is_filled():
+            return "F"
+
+        if self.is_part_filled():
+            return "f"
+
+        if self.is_canceled():
+            return "X"
+
+        return "?"
+
+    def get_type_as_string(self):
+        """
+        Get the type as string:
+        (M)aker
+        (T)aker
+        (?)Unknown
+        :return: type as string
+        """
+        if self.is_taker():
+            return "T"
+
+        if self.is_maker():
+            return "M"
+
+        return "?"
 
     def __str__(self):
         """
         Trade to string
         :return: trade as string
         """
-        return("[%9s] %4s %16.8f %4s @ %.8f for %16.8f %4s paying %16.8f %4s fees" %
-               (self.pair.get_symbol(), self.get_trade_way_as_string(),
+
+        return("[%9s][%s][%s][%3d%%] %4s %16.8f %4s @ %.8f for %16.8f %4s paying %16.8f %4s fees" %
+               (self.pair.get_symbol(),
+                self.get_type_as_string(),
+                self.get_state_as_string(),
+                self.get_filled()*100,
+                self.get_trade_way_as_string(),
                 self.get_amount_quote_as_float(),
                 self.pair.get_quote_token().get_name(),
                 self.price,
@@ -219,7 +333,7 @@ class Trade(object):
 
     def send_order(self):
         exchange = self.pair.get_exchange()
-        exchange.send_order(self)
+        return exchange.send_order(self)
 
     @staticmethod
     def get_buy_string():
@@ -250,11 +364,23 @@ class Trade(object):
         way = trades[0].get_way()
         price = trades[0].get_price()
         timestamp = trades[0].get_timestamp()
+        fee_currency = trades[0].get_fee_token()
         for trade in trades:
             if trade.get_way() != way:
                 raise TypeError("Trading ways are different")
             if trade.get_pair() != pair:
                 raise TypeError("Trading pairs are different")
+            if trade.get_fee_token() != fee_currency:
+                raise TypeError("Fee token is not correct")
+
+            if len(trades) > 1 and trade == trades[len(trades)-1]:
+                exchange = pair.get_exchange()
+                if exchange.get_minimum_amount(pair.get_quote_token()) > trade.get_amount_quote():
+                    raise ValueError("Last amount to small")
+
+                if exchange.get_minimum_amount(pair.get_base_token()) > trade.get_amount_base():
+                    raise ValueError("Last amount to small")
+
             if trade.get_way() == Trade.WAY_BUY:
                 amount_quote = amount_quote + trade.get_total()
                 amount_base = amount_base + trade.get_amount_base()
@@ -264,4 +390,17 @@ class Trade(object):
             price = trade.get_price()
         if amount_quote == 0 or amount_base == 0:
             raise ValueError("Amount is Zero")
-        return Trade(pair, way, price, amount_base, amount_quote, timestamp)
+        return Trade(pair, way, price, amount_base, amount_quote, timestamp, fee_currency=fee_currency)
+
+    @staticmethod
+    def get_trade_way(way_string):
+        """
+        Get trade way by string
+        :param way_string: "sell" or "buy"
+        :return: as integer
+        """
+        if way_string.lower() == "buy":
+            return Trade.WAY_BUY
+        if way_string.lower() == "sell":
+            return Trade.WAY_SELL
+        raise ValueError("Trade way string not possible:"+way_string)

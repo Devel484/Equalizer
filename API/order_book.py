@@ -139,7 +139,7 @@ class OrderBook(object):
 
             if amount_base >= amount:
                 tmp = int("%d" % (amount / price))
-                trade = Trade(self.pair, Trade.WAY_BUY, price, amount, tmp, None)
+                trade = Trade(self.pair, Trade.WAY_BUY, price, amount, tmp, time.time(), fee_currency=self.pair.get_exchange().get_fee_token())
                 buy_amount = buy_amount + trade.get_amount_quote()
                 trades.append(trade)
                 return trades, int(buy_amount)
@@ -147,7 +147,7 @@ class OrderBook(object):
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue with next offer.
             '''
-            trade = Trade(self.pair, Trade.WAY_BUY, price, amount_base, amount_quote, None)
+            trade = Trade(self.pair, Trade.WAY_BUY, price, amount_base, amount_quote, time.time(), fee_currency=self.pair.get_exchange().get_fee_token())
             buy_amount = buy_amount + trade.get_amount_quote()
             amount = amount - amount_base
             trades = trades + [trade]
@@ -174,7 +174,7 @@ class OrderBook(object):
             if amount_quote >= amount:
                 tmp = amount * price
                 tmp = int(tmp)
-                trade = Trade(self.pair, Trade.WAY_SELL, price, tmp, amount, None)
+                trade = Trade(self.pair, Trade.WAY_SELL, price, tmp, amount, time.time(), fee_currency=self.pair.get_exchange().get_fee_token())
                 sell_amount = sell_amount + trade.get_amount_base()
                 trades.append(trade)
                 return trades, int(sell_amount)
@@ -182,7 +182,7 @@ class OrderBook(object):
             '''
             Is the offered amount less than needed, you can only buy the offered amount and continue
             '''
-            trade = Trade(self.pair, Trade.WAY_SELL, price, amount_base, amount_quote, None)
+            trade = Trade(self.pair, Trade.WAY_SELL, price, amount_base, amount_quote, time.time(), fee_currency=self.pair.get_exchange().get_fee_token())
             amount = amount - amount_quote
             sell_amount = sell_amount + trade.get_amount_base()
             trades = trades + [trade]
@@ -220,7 +220,10 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_quote >= amount:
-                trade_amount = trade_amount + amount*price / (1 - self.pair.get_exchange().get_fees())
+                if self.pair.get_exchange().get_fee_token():
+                    trade_amount = trade_amount + amount*price
+                else:
+                    trade_amount = trade_amount + amount*price / (1 - self.pair.get_exchange().get_fees())
                 return int(trade_amount)
 
             '''
@@ -248,7 +251,10 @@ class OrderBook(object):
             price = offer.get_price()
 
             if amount_base >= amount:
-                trade_amount = trade_amount + amount/price / (1 - self.pair.get_exchange().get_fees())
+                if self.pair.get_exchange().get_fee_token():
+                    trade_amount = trade_amount + amount/price
+                else:
+                    trade_amount = trade_amount + amount/price / (1 - self.pair.get_exchange().get_fees())
                 return int(trade_amount)
 
             '''
@@ -320,5 +326,8 @@ class OrderBook(object):
         sum = self.get_sum(index, way, token)
         if not sum:
             return None
-        return int(sum * (1-self.pair.get_exchange().get_fees()))
+        if self.pair.get_exchange().get_fee_token():
+            return sum
+        else:
+            return int(sum * (1-self.pair.get_exchange().get_fees()))
 
