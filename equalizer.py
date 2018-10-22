@@ -82,32 +82,32 @@ class Equalizer(object):
         """
         if self.is_updating():
             return
-        API.log.log("update.txt", "%s:%s" % (self.get_symbol(), self.is_updating()))
         self.set_updating(True)
 
-        if self.start_pair.is_updating():
-            while True:
-                if self.start_pair.is_updating():
-                    continue
-                break
-        else:
-            self.start_pair.load_offers()
+        self.start_pair.load_offers()
+        self.middle_pair.load_offers()
+        self.end_pair.load_offers()
 
-        if self.middle_pair.is_updating():
-            while True:
-                if self.middle_pair.is_updating():
-                    continue
-                break
-        else:
-            self.middle_pair.load_offers()
+        start = time.time()
+        while True:
+            if time.time() - start > 10:
+                return
 
-        if self.end_pair.is_updating():
-            while True:
-                if self.end_pair.is_updating():
-                    continue
+            if self.start_pair.is_updating() or\
+               self.middle_pair.is_updating() or\
+               self.end_pair.is_updating():
+                continue
+            else:
                 break
-        else:
-            self.end_pair.load_offers()
+
+        if not self.start_pair.is_updated():
+            return self.set_updating(False)
+
+        if not self.middle_pair.is_updated():
+            return self.set_updating(False)
+
+        if not self.end_pair.is_updated():
+            return self.set_updating(False)
 
         times = (self.start_pair.get_orderbook().get_timestamp(), self.middle_pair.get_orderbook().get_timestamp(),
                  self.end_pair.get_orderbook().get_timestamp())
@@ -117,7 +117,7 @@ class Equalizer(object):
 
         self.timestamp = latest
         self.spread = self.timestamp - first
-
+        API.log.log("update.txt", "%s:%.3f" % (self.get_symbol(), self.spread))
         if self.spread > 5:
             return self.set_updating(False)
 
@@ -247,7 +247,6 @@ class Equalizer(object):
 
                     best_win.append((win, start_with, end_with, trades))
                 else:
-                    API.log.log("update.txt", "%s break" % self.get_symbol())
                     if percentage > -10:
                         log_string = "%s:%.8f (%.2f%%) time spread:%.3fs\n" % (self.get_symbol(),
                                                                                win/pow(10, self.outer_currency.get_decimals()),
@@ -260,8 +259,8 @@ class Equalizer(object):
                     break
                 i = i + 1
             except Exception as e:
-                print(e)
-                print(self.get_symbol())
+                #print(e)
+                #print(self.get_symbol())
                 break
 
         if len(best_win) > 0:

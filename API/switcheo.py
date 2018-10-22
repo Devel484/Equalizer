@@ -76,13 +76,10 @@ class Switcheo(object):
         if token.get_name() == "NEO":
             return 0.01 * pow(10, 8)
 
-        if token.get_name() == "RHT":
-            return 0.01 * pow(10, 8)
-
         if token.get_name() == "GAS":
             return 0.1 * pow(10, 8)
 
-        return 1 * pow(10, 8)
+        return 1 * pow(10, token.get_decimals())
 
     def get_key_pair(self):
         """
@@ -372,12 +369,16 @@ class Switcheo(object):
                 quote_amount = int(base_amount / price)
 
             available_amount = 0
-            if makes["available_amount"] != "":
+            if makes["available_amount"] and makes["available_amount"] != "":
                 available_amount = float(makes["available_amount"])
 
             offer_amount = 0
-            if makes["offer_amount"] != "":
+            if makes["offer_amount"] and makes["offer_amount"] != "":
                 offer_amount = float(makes["offer_amount"])
+
+            filled_amount = 0
+            if makes["filled_amount"] and makes["filled_amount"] != "":
+                filled_amount = float(makes["filled_amount"])
 
             filled = (offer_amount - available_amount) / offer_amount
 
@@ -388,9 +389,8 @@ class Switcheo(object):
                     state = Trade.STATE_ACTIVE
                 else:
                     state = Trade.STATE_PART_FILLED
-                filled = (float(makes["offer_amount"]) - float(makes["available_amount"])) / float(makes["offer_amount"])
             else:
-                filled = (float(makes["filled_amount"]) / float(makes["offer_amount"]))
+                filled = filled_amount / offer_amount
             """
             if makes["status"] == "cancelled" or makes["status"] == "expired":
                 state = Trade.STATE_CANCELED"""
@@ -443,9 +443,8 @@ class Switcheo(object):
                     break
 
             except HTTPError as e:
-                API.log.log_and_print("send_order.txt:", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
+                API.log.log("send_order.txt", "[%s]:(%s):%s" % (e.response.status_code, e.response.url,
                                                                  e.response.text))
-                time.sleep(0.1)
                 continue
 
         if not order_details:

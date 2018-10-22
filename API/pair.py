@@ -147,8 +147,8 @@ class Pair(object):
                 base_amount = offer["want_amount"]
 
             #Because of RHT
-            if self.get_quote_token().get_decimals() == 0:
-                quote_amount = quote_amount * pow(10, 8)
+            """if self.get_quote_token().get_decimals() == 0:
+                quote_amount = quote_amount * pow(10, 8)"""
 
             price = base_amount / quote_amount
 
