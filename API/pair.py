@@ -125,7 +125,9 @@ class Pair(object):
         :return: list of offers
         """
         if self.is_updating():
-            return
+            return False
+        if self.is_blocked():
+            return False
         self.set_updating(True)
         if contract is None:
             contract = self.get_exchange().get_contract("NEO")

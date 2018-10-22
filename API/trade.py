@@ -101,7 +101,7 @@ class Trade(object):
                 return self.amount_quote + self.fees
             return self.amount_quote
         else:
-            if self.pair.get_base_token() == self.fee_currency and self.pair.get_quote_token().get_name() != "SWTH":
+            if self.pair.get_base_token() == self.fee_currency and self.pair.get_base_token().get_name() != "SWTH":
                 return self.amount_base + self.fees
             return self.amount_base
 
@@ -242,7 +242,10 @@ class Trade(object):
         """
         :return: fees as float
         """
-        return self.fees / pow(10, self.fee_currency.get_decimals())
+        decimals = self.fee_currency.get_decimals()
+        if decimals == 0:
+            decimals = 8
+        return self.fees / pow(10, decimals)
 
     def is_maker(self):
         """
@@ -373,13 +376,13 @@ class Trade(object):
             if trade.get_fee_token() != fee_currency:
                 raise TypeError("Fee token is not correct")
 
-            if len(trades) > 1 and trade == trades[len(trades)-1]:
+            """if len(trades) > 1 and trade == trades[len(trades)-1]:
                 exchange = pair.get_exchange()
                 if exchange.get_minimum_amount(pair.get_quote_token()) > trade.get_amount_quote():
                     raise ValueError("Last amount to small")
 
                 if exchange.get_minimum_amount(pair.get_base_token()) > trade.get_amount_base():
-                    raise ValueError("Last amount to small")
+                    raise ValueError("Last amount to small")"""
 
             if trade.get_way() == Trade.WAY_BUY:
                 amount_quote = amount_quote + trade.get_total()
@@ -389,7 +392,7 @@ class Trade(object):
                 amount_base = amount_base + trade.get_total()
             price = trade.get_price()
         if amount_quote == 0 or amount_base == 0:
-            raise ValueError("Amount is Zero")
+            raise ValueError("[%s]Amount is Zero" % pair.get_symbol())
         return Trade(pair, way, price, amount_base, amount_quote, timestamp, fee_currency=fee_currency)
 
     @staticmethod

@@ -106,6 +106,8 @@ class Switcheo(object):
         """
         :return: timestamp in seconds
         """
+        if not request.public_request(self.url, "/v2/exchange/timestamp"):
+            return
         return int(request.public_request(self.url, "/v2/exchange/timestamp")["timestamp"])/1000
 
     def load_contracts(self):
@@ -228,7 +230,7 @@ class Switcheo(object):
         if not raw_candles:
             return
         candlesticks = []
-        timestamp = self.get_timestamp() - 1*60*60*24
+        timestamp = time.time() - 1*60*60*24
         for token in self.tokens:
             token.set_volume(0)
         for entry in raw_candles:
@@ -369,7 +371,15 @@ class Switcheo(object):
                 base_amount = int(makes["want_amount"])
                 quote_amount = int(base_amount / price)
 
-            filled = (float(makes["offer_amount"]) - float(makes["available_amount"])) / float(makes["offer_amount"])
+            available_amount = 0
+            if makes["available_amount"] != "":
+                available_amount = float(makes["available_amount"])
+
+            offer_amount = 0
+            if makes["offer_amount"] != "":
+                offer_amount = float(makes["offer_amount"])
+
+            filled = (offer_amount - available_amount) / offer_amount
 
             if state != Trade.STATE_CANCELED:
                 if filled == 1:
@@ -419,15 +429,15 @@ class Switcheo(object):
                                                          trade.get_trade_way_as_string().lower(), price, want_amount, True)
                 if order_details:
                     trades = self.order_to_trades(order_details)
-                    API.log.log_and_print("send_order.txt", "Virtual order:")
-                    API.log.log_and_print("send_order.txt", trade)
-                    API.log.log_and_print("send_order.txt", "Create order:")
+                    API.log.log("send_order.txt", "Virtual order:")
+                    API.log.log("send_order.txt", trade)
+                    API.log.log("send_order.txt", "Create order:")
                     for t in trades:
-                        API.log.log_and_print("send_order.txt", t)
+                        API.log.log("send_order.txt", t)
 
                     details = self.client.execute_order(order_details, self.key_pair)
                     trades = self.order_to_trades(details)
-                    API.log.log_and_print("send_order.txt", "Execute order(s)")
+                    API.log.log("send_order.txt", "Execute order(s)")
                     for t in trades:
                         API.log.log_and_print("send_order.txt", t)
                     break
