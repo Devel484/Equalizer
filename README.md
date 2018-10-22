@@ -17,9 +17,9 @@ This is why neither I nor the Switcheo team are responsible for the correctness 
 Download the directory and unzip it. Use Python 3 to start the program:<br>
 Open the file equalizer.py and enter your private key at the end of the file.You need funds for running the bot.<br>
 Use:
-`python equalizer.py`<br>
+`python main.py`<br>
 or:<br>
-`python3 equalizer.py`<br>
+`python3 main.py`<br>
 To view all output, even those with losses, to see that the bot is doing something, Linux users can view the end of the log files:<br>
 `tail -f logs/mainnet/equalizer_all.txt` <br> 
 
