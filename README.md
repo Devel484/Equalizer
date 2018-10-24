@@ -1,12 +1,12 @@
 # Equalizer
 
-Equalizer is an arbitrage bot developed by Devel484 in Python. Due to difficulties in creating and executing trades, this is only an instant win indicator. The program will not execute trades on its own until the bugs have been fixed.
+Equalizer is an arbitrage bot developed by Devel484 in Python.
 
 The bot has a self-developed object-oriented API. It is able to link and monitor all possible exchange rates. It is constantly tried to determine an amount with which one receives the largest possible increase. As soon as exchange rates and an amount have been found, it is displayed in the console and tries to buy/sell.
 
-The output looks like this and will only output if a profit has been found. Otherwise the output remains empty.
+The output looks like this and will only output if a profit has been found. Otherwise the output remains empty. The first three trades are virtual and are only calculated client side. The following trades are real trades and are executed on the exchange.
 
-![Image description](readme.png)
+![Image description](readme2.png)
 
 # ATTENTION!
 The software has been sufficiently tested so that the calculated profit is correct, except for deviations due to rounding errors in the millionth part. This may result in Switcheo not accepting the proposed amount and having to change it. If this happens,it simply round the amount down. Example: Purchase amount: 0.12345678 round to 0.12345670. This should make it possible to buy or sell again.  Due to unexplained reasons, the API may not provide current offers. So it can happen that the web interface of Switcheo displays the current offers while the API delivers outdated offers.
