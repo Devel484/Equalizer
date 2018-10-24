@@ -308,6 +308,11 @@ class Switcheo(object):
         return trades
 
     def time_to_timestamp(self, timestring):
+        """
+        Convert time string to timestamp
+        :param timestring: time as string
+        :return: timestamp
+        """
         timestring, milliseconds = timestring.split(".")
         timestamp = time.mktime(datetime.datetime.strptime(timestring, "%Y-%m-%dT%H:%M:%S").timetuple())
         milliseconds = milliseconds[:len(milliseconds)-1]
@@ -316,6 +321,11 @@ class Switcheo(object):
         return timestamp
 
     def order_to_trades(self, order_details):
+        """
+        Order details to trades
+        :param order_details: details of orders
+        :return: list of trades
+        """
         trades = []
         way = Trade.get_trade_way(order_details["side"])
         use_native_token = order_details["use_native_token"]

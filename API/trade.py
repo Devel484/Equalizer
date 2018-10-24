@@ -312,7 +312,7 @@ class Trade(object):
         :return: trade as string
         """
 
-        return("[%9s][%s][%s][%3d%%] %4s %16.8f %4s @ %.8f for %16.8f %4s paying %16.8f %4s fees" %
+        return("[%10s][%s][%s][%3d%%] %4s %20.8f %5s @ %16.8f for %20.8f %4s paying %16.8f %4s fees" %
                (self.pair.get_symbol(),
                 self.get_type_as_string(),
                 self.get_state_as_string(),
