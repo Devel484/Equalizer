@@ -125,7 +125,6 @@ class Pair(object):
         :param contract: contract
         :return: list of offers
         """
-
         if self.orderbook and time.time() - self.orderbook.get_timestamp() < 0.05:
             return False
 
@@ -155,7 +154,7 @@ class Pair(object):
             """if self.get_quote_token().get_decimals() == 0:
                 quote_amount = quote_amount * pow(10, 8)"""
 
-            price = base_amount / quote_amount
+            price = base_amount / quote_amount * pow(10, self.get_quote_token().get_decimals() - self.get_base_token().get_decimals())
 
             if offer["available_amount"] < offer["offer_amount"]:
                 quote_amount = int(offer["available_amount"] / offer["offer_amount"] * quote_amount)
