@@ -7,6 +7,7 @@ from API.order_book import OrderBook
 from API.trade import Trade
 from API.offer import Offer
 import API.log as log
+import time
 
 
 class Pair(object):
@@ -124,6 +125,10 @@ class Pair(object):
         :param contract: contract
         :return: list of offers
         """
+
+        if self.orderbook and time.time() - self.orderbook.get_timestamp() < 0.05:
+            return False
+
         if self.is_updating():
             return False
         if self.is_blocked():
@@ -134,7 +139,7 @@ class Pair(object):
         params = {"blockchain": contract.get_blockchain().lower(), "pair": self.get_symbol(), "contract_hash": contract.get_latest_hash()}
         raw_offers = request.public_request(self.exchange.get_url(), "/v2/offers", params)
         if not raw_offers:
-            return
+            return self.set_updating(False)
         self.offers = []
         for offer in raw_offers:
             way = Trade.WAY_BUY
@@ -158,6 +163,7 @@ class Pair(object):
 
             self.offers.append(Offer(way, quote_amount, base_amount, price))
         self.orderbook = OrderBook(self, self.offers)
+        self.orderbook.set_timestamp(time.time())
         log.log("pair.txt", "%s: updated" % self.get_symbol())
         self.fire_on_update()
         self.set_updating(False)

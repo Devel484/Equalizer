@@ -91,7 +91,7 @@ class Equalizer(object):
         start = time.time()
         while True:
             if time.time() - start > 10:
-                return
+                return self.set_updating(False)
 
             if self.start_pair.is_updating() or\
                self.middle_pair.is_updating() or\

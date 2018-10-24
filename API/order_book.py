@@ -17,7 +17,7 @@ class OrderBook(object):
         self.book[Trade.WAY_BUY] = []
         self.book[Trade.WAY_SELL] = []
         self.pair = pair
-        self.timestamp = time.time()
+        self.timestamp = 0
 
         if offers:
             for offer in offers:
