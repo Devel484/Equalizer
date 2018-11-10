@@ -57,12 +57,21 @@ To start the bot. To view all output, even those with losses, to see that the bo
 `tail -f logs/mainnet/equalizer_all.txt` <br> 
 
 # Statistics
-A executable version has been tested daily since 18.10.18 and has achieved the following until today 31.10.18:
-+Days of use: 13 days
-+Runtime: ~40-50% (Due to further development, bugs and tests)
-+Starting capital: ~1 NEO and 2000 SWTH
-+Profit: 4-5 NEO
-+Total trading volume of the last 200 trades: ~ 600 NEO 
+A executable version has been tested daily since 18.10.18 and has achieved the following until today 10.11.18.
+<br>NEO Address: `AdZ2fAigCJHESy2cZAXAz8Ts4ZGgsohZ65`
+
+| Achievement | Achieved | Place |
+| :---------------------: |:---------------------------: | :---------------------------: |
+| Days of use             | 23                           | -                             |
+| Uptime                  | ~70%                         | -                             |    
+| Total Trades            | 459                          | 2                             |
+| Taker Trades            | 444                          | 1                             |
+| Maker Trades            | 15                           | -                             |    
+| Total Trade Amount      | 63.019.803.625.647           | 43                            |
+| Paided fees(SWTH)       | 1.498,549                    | 16                            |
+| Total Win               | ~10 NEO                      | -                             |
+
+Sources: https://switcheolytics.tech/ and http://switchstatistic.000webhostapp.com/
 
 # TODO
 + The bot can still be repaired in many places:
